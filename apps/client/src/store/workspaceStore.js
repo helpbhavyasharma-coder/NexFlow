@@ -28,6 +28,16 @@ export const useWorkspaceStore = create((set, get) => ({
   async createTask(payload) {
     await api.post('/tasks', payload);
   },
+  async createTeam(payload) {
+    const { data } = await api.post('/teams', payload);
+    set({ teams: [data, ...get().teams], activeTeam: data });
+    await get().selectTeam(data.id);
+  },
+  async joinTeam(inviteCode) {
+    const { data } = await api.post('/teams/join', { inviteCode });
+    set({ teams: [data, ...get().teams.filter((team) => team.id !== data.id)], activeTeam: data });
+    await get().selectTeam(data.id);
+  },
   async startTask(taskId) {
     const { data } = await api.patch(`/tasks/${taskId}/start`);
     get().upsertTask(data);
