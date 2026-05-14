@@ -19,6 +19,7 @@ const __dirname = path.dirname(__filename);
 
 export function createApp() {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(helmet());
   app.use(cors({ origin: env.clientUrls, credentials: true }));
   app.use(compression());
