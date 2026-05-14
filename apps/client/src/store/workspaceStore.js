@@ -1,0 +1,66 @@
+import { create } from 'zustand';
+import { api } from '../services/api.js';
+import { getSocket } from '../services/socket.js';
+
+export const useWorkspaceStore = create((set, get) => ({
+  teams: [],
+  activeTeam: null,
+  tasks: [],
+  notifications: [],
+  analytics: null,
+  onlineUsers: [],
+  async loadTeams() {
+    const { data } = await api.get('/teams');
+    set({ teams: data, activeTeam: get().activeTeam || data[0] || null });
+    if (data[0]) await get().selectTeam(get().activeTeam?.id || data[0].id);
+  },
+  async selectTeam(teamId) {
+    const activeTeam = get().teams.find((team) => team.id === teamId) || get().activeTeam;
+    set({ activeTeam });
+    getSocket()?.emit('team_join', teamId);
+    await Promise.all([get().loadTasks(teamId), get().loadAnalytics(teamId)]);
+  },
+  async loadTasks(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.get(`/tasks/team/${teamId}`);
+    set({ tasks: data });
+  },
+  async createTask(payload) {
+    await api.post('/tasks', payload);
+  },
+  async startTask(taskId) {
+    const { data } = await api.patch(`/tasks/${taskId}/start`);
+    get().upsertTask(data);
+  },
+  async completeTask(taskId) {
+    const { data } = await api.patch(`/tasks/${taskId}/complete`);
+    get().upsertTask(data);
+  },
+  upsertTask(task) {
+    set({ tasks: [task, ...get().tasks.filter((item) => item.id !== task.id)] });
+  },
+  async addComment(taskId, content) {
+    await api.post(`/tasks/${taskId}/comments`, { content });
+  },
+  async loadNotifications() {
+    const { data } = await api.get('/notifications');
+    set({ notifications: data });
+  },
+  async loadAnalytics(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.get(`/analytics/team/${teamId}`);
+    set({ analytics: data });
+  },
+  wireRealtime() {
+    const socket = getSocket();
+    if (!socket) return;
+    socket.off('task_created').on('task_created', get().upsertTask);
+    socket.off('task_updated').on('task_updated', get().upsertTask);
+    socket.off('task_started').on('task_started', get().upsertTask);
+    socket.off('task_completed').on('task_completed', get().upsertTask);
+    socket.off('notification_created').on('notification_created', (notification) => set({ notifications: [notification, ...get().notifications] }));
+    socket.off('user_online').on('user_online', ({ userId }) => set({ onlineUsers: Array.from(new Set([...get().onlineUsers, userId])) }));
+    socket.off('user_offline').on('user_offline', ({ userId }) => set({ onlineUsers: get().onlineUsers.filter((id) => id !== userId) }));
+    socket.off('comment_created').on('comment_created', ({ taskId, comment }) => set({ tasks: get().tasks.map((task) => task.id === taskId ? { ...task, comments: [...(task.comments || []), comment] } : task) }));
+  },
+}));
