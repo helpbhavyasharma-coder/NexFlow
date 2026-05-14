@@ -7,6 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from './config/env.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import { prisma } from './prisma/client.js';
 import { analyticsRoutes } from './routes/analytics.routes.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { notificationRoutes } from './routes/notification.routes.js';
@@ -25,6 +26,14 @@ export function createApp() {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
   app.get('/health', (req, res) => res.json({ status: 'ok', name: 'NexFlow API' }));
+  app.get('/health/db', async (req, res, next) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ status: 'ok', database: 'connected' });
+    } catch (error) {
+      next(error);
+    }
+  });
   app.use('/api/auth', authRoutes);
   app.use('/api/teams', teamRoutes);
   app.use('/api/tasks', taskRoutes);
