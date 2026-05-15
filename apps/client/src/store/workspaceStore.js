@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import toast from 'react-hot-toast';
 import { api } from '../services/api.js';
 import { getSocket } from '../services/socket.js';
 
@@ -39,8 +40,12 @@ export const useWorkspaceStore = create((set, get) => ({
     await get().selectTeam(data.id);
   },
   async startTask(taskId) {
-    const { data } = await api.patch(`/tasks/${taskId}/start`);
-    get().upsertTask(data);
+    try {
+      const { data } = await api.patch(`/tasks/${taskId}/start`);
+      get().upsertTask(data);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Unable to start task');
+    }
   },
   async completeTask(taskId) {
     const { data } = await api.patch(`/tasks/${taskId}/complete`);
