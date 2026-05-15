@@ -111,10 +111,12 @@ export const useWorkspaceStore = create((set, get) => ({
     const handleVisibilityChange = () => {
       if (!document.hidden) syncActiveTeam();
     };
+    const recoveryInterval = window.setInterval(syncActiveTeam, 20000);
     window.addEventListener('focus', syncActiveTeam);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     set({
       realtimeCleanup: () => {
+        window.clearInterval(recoveryInterval);
         window.removeEventListener('focus', syncActiveTeam);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         socket.off('connect', syncActiveTeam);
