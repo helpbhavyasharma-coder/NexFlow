@@ -12,7 +12,8 @@ export function DashboardLayout() {
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState({ username: user?.username || '', avatar: user?.avatar || maleAvatar(user?.email || 'Bhavya') });
+  const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
+  const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
 
   async function handleCreateTeam(event) {
     event.preventDefault();
@@ -52,9 +53,9 @@ export function DashboardLayout() {
   return (
     <div className="h-screen overflow-hidden bg-slate-950 text-white">
       <div className="flex h-full overflow-hidden">
-        <aside className="hidden h-full w-72 shrink-0 flex-col overflow-hidden border-r border-white/10 bg-black/45 p-4 backdrop-blur-2xl lg:flex">
+        <aside className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/45 p-4 backdrop-blur-2xl lg:flex">
           <button onClick={() => setProfileOpen(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-white/10">
-            <img src={user?.avatar || maleAvatar(user?.email || 'NexFlow')} className="h-12 w-12 rounded-full ring-2 ring-cyan-300/40" />
+            <img src={userAvatar} className="h-12 w-12 rounded-full bg-white ring-2 ring-cyan-300/40" />
             <div className="min-w-0">
               <p className="truncate text-sm font-black uppercase">{user?.username || 'NexFlow User'}</p>
               <p className="truncate text-xs text-white/55">{user?.email}</p>
@@ -86,7 +87,7 @@ export function DashboardLayout() {
             {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
           </div>
 
-          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="mt-4 pr-1">
             <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase text-white/45">
               <span>Groups</span>
               <span>{onlineUsers.length} online</span>
@@ -126,14 +127,14 @@ export function DashboardLayout() {
         <button onClick={() => setProfileOpen(true)}><Sun /></button><button onClick={() => setTaskFilter('all')}><ClipboardList /></button><button onClick={() => setTaskFilter('working')}><Users /></button><button onClick={logout}><LogOut /></button>
       </nav>
       {profileOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-black/70 p-4 backdrop-blur-sm">
-          <form onSubmit={handleProfileSave} className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex min-h-full items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:items-center">
+          <form onSubmit={handleProfileSave} className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-black">Edit Profile</h2>
               <button type="button" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/10 px-3 py-2">Close</button>
             </div>
             <div className="mb-5 flex items-center gap-4">
-              <img src={profile.avatar} className="h-20 w-20 rounded-full bg-white ring-2 ring-cyan-300/40" />
+              <img src={lightAvatar(profile.avatar)} className="h-20 w-20 rounded-full bg-white ring-2 ring-cyan-300/40" />
               <div>
                 <p className="font-bold">{user?.email}</p>
                 <p className="text-sm text-white/50">Choose an avatar and update your name.</p>
@@ -164,9 +165,22 @@ function SidebarItem({ icon, label, count, active, onClick }) {
 }
 
 function maleAvatar(seed) {
-  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ffffff&skinColor=f2d3b1`;
 }
 
 function femaleAvatar(seed) {
-  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}`;
+  return `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ffffff&skinColor=f2d3b1`;
+}
+
+function lightAvatar(avatar) {
+  if (!avatar) return null;
+  try {
+    const avatarUrl = new URL(avatar);
+    if (!avatarUrl.hostname.includes('dicebear.com')) return avatar;
+    avatarUrl.searchParams.set('backgroundColor', 'ffffff');
+    avatarUrl.searchParams.set('skinColor', 'f2d3b1');
+    return avatarUrl.toString();
+  } catch {
+    return avatar;
+  }
 }
