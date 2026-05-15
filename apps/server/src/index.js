@@ -6,7 +6,7 @@ import { registerSockets } from './sockets/index.js';
 
 const app = createApp();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: env.clientUrl, credentials: true } });
+const io = new Server(server, { cors: { origin: env.clientUrls, credentials: true } });
 
 app.set('io', io);
 registerSockets(io);

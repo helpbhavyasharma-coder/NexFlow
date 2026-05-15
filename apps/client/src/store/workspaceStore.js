@@ -33,7 +33,6 @@ export const useWorkspaceStore = create((set, get) => ({
   async createTask(payload) {
     const { data } = await api.post('/tasks', payload);
     get().upsertTask(data);
-    set({ teams: get().teams.map((team) => team.id === data.teamId ? { ...team, tasks: [data, ...(team.tasks || []).filter((task) => task.id !== data.id)] } : team) });
   },
   async createTeam(payload) {
     const { data } = await api.post('/teams', payload);
@@ -62,7 +61,12 @@ export const useWorkspaceStore = create((set, get) => ({
     get().upsertTask(data);
   },
   upsertTask(task) {
-    set({ tasks: [task, ...get().tasks.filter((item) => item.id !== task.id)] });
+    if (!task?.id || !task?.title) return;
+    const activeTeamId = get().activeTeam?.id;
+    set({
+      tasks: task.teamId === activeTeamId ? [task, ...get().tasks.filter((item) => item.id !== task.id)] : get().tasks,
+      teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: [task, ...(team.tasks || []).filter((item) => item.id !== task.id)] } : team),
+    });
   },
   async addComment(taskId, content) {
     await api.post(`/tasks/${taskId}/comments`, { content });
@@ -79,6 +83,12 @@ export const useWorkspaceStore = create((set, get) => ({
   wireRealtime() {
     const socket = getSocket();
     if (!socket) return;
+    const joinActiveTeam = () => {
+      const teamId = get().activeTeam?.id;
+      if (teamId) socket.emit('team_join', teamId);
+    };
+    socket.off('connect').on('connect', joinActiveTeam);
+    joinActiveTeam();
     socket.off('task_created').on('task_created', get().upsertTask);
     socket.off('task_updated').on('task_updated', get().upsertTask);
     socket.off('task_started').on('task_started', get().upsertTask);

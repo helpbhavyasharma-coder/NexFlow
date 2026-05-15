@@ -1,9 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronDown, Circle, Clock, MessageCircle, Play, Plus, Search, Star, UserPlus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useAuthStore } from '../../store/authStore.js';
 import { useWorkspaceStore } from '../../store/workspaceStore.js';
 
 export function TodoTaskList() {
+  const user = useAuthStore((state) => state.user);
   const { activeTeam, tasks, taskFilter, createTask, startTask, completeTask, cancelTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
   const [search, setSearch] = useState('');
@@ -48,13 +50,13 @@ export function TodoTaskList() {
               </div>
             </div>
             <div className="mt-3 inline-flex rounded-xl bg-black/25 px-3 py-2 text-sm font-semibold backdrop-blur-xl">
-              {activeTeam ? `${activeTeam.name} · ${labelForFilter(taskFilter)}` : 'Create or join a group'}
+              {activeTeam ? `${activeTeam.name} - ${labelForFilter(taskFilter)}` : 'Create or join a group'}
             </div>
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             <AnimatePresence>
-              {activeTasks.map((task) => <TaskRow key={task.id} task={task} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onCancel={() => cancelTask(task.id)} />)}
+              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onCancel={() => cancelTask(task.id)} />)}
             </AnimatePresence>
 
             {completedTasks.length > 0 && (
@@ -76,30 +78,34 @@ export function TodoTaskList() {
       </section>
 
       <aside className="hidden min-h-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/90 text-white shadow-2xl xl:block">
-        {selectedTask ? <TaskDetail task={selectedTask} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
+        {selectedTask ? <TaskDetail task={selectedTask} currentUserId={user?.id} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
       </aside>
     </div>
   );
 }
 
-function TaskRow({ task, selected, completed, onSelect, onStart, onComplete, onCancel }) {
+function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, onComplete, onCancel }) {
   const working = task.status === 'IN_PROGRESS';
+  const canCancel = working && task.startedBy === currentUserId;
+  const canComplete = !completed && (!working || task.startedBy === currentUserId);
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-white backdrop-blur-xl transition ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
-      <button disabled={completed} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : 'border-white/70 hover:border-cyan-300'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
+      <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm font-medium ${completed ? 'line-through text-white/55' : ''}`}>{task.title}</p>
         <p className="mt-0.5 text-xs text-white/50">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
       </div>
-      {working && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
+      {canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
       {!working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
       <Star size={18} className="text-white/55" />
     </motion.div>
   );
 }
 
-function TaskDetail({ task, onStart, onComplete, onCancel }) {
+function TaskDetail({ task, currentUserId, onStart, onComplete, onCancel }) {
   const working = task.status === 'IN_PROGRESS';
+  const canCancel = working && task.startedBy === currentUserId;
+  const canComplete = task.status !== 'COMPLETED' && (!working || task.startedBy === currentUserId);
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
       <div className="rounded-3xl bg-white/10 p-5">
@@ -114,9 +120,9 @@ function TaskDetail({ task, onStart, onComplete, onCancel }) {
         {task.starter && <DetailItem icon={<UserPlus size={16} />} label="Working" value={`${task.starter.username} is working on it`} />}
       </div>
       <div className="mt-auto grid gap-3">
-        {working && <button onClick={onCancel} className="rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white">Cancel Working</button>}
+        {canCancel && <button onClick={onCancel} className="rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white">Cancel Working</button>}
         {!working && task.status !== 'COMPLETED' && <button onClick={onStart} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Start Working</button>}
-        {task.status !== 'COMPLETED' && <button onClick={onComplete} className="rounded-2xl bg-white px-4 py-3 font-bold text-slate-950">Mark Complete</button>}
+        {canComplete && <button onClick={onComplete} className="rounded-2xl bg-white px-4 py-3 font-bold text-slate-950">Mark Complete</button>}
       </div>
     </div>
   );

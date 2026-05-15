@@ -44,6 +44,9 @@ export async function startTask(req, res) {
 }
 
 export async function completeTask(req, res) {
+  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
+  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  if (existing.status === 'IN_PROGRESS' && existing.startedBy && existing.startedBy !== req.user.id) return res.status(403).json({ message: 'Only the teammate working on this task can complete it' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'COMPLETED', completedBy: req.user.id, completedAt: new Date() }, include: includeTask });
   const io = req.app.get('io');
   io?.to(`team:${task.teamId}`).emit('task_completed', task);
