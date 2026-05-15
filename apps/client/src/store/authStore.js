@@ -17,6 +17,10 @@ export const useAuthStore = create(persist((set, get) => ({
     set(data);
     connectSocket(data.accessToken);
   },
+  async updateProfile(payload) {
+    const { data } = await api.patch('/auth/profile', payload);
+    set({ user: data.user });
+  },
   async logout() {
     try { await api.post('/auth/logout'); } finally { disconnectSocket(); set({ user: null, accessToken: null, refreshToken: null }); }
   },
