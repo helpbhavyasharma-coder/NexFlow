@@ -50,37 +50,37 @@ export function TodoTaskList() {
     <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="relative min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/60 shadow-2xl sm:rounded-[2rem]">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,165,233,.28),rgba(15,23,42,.35)),url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center" />
-        <div className="relative flex h-full min-h-0 flex-col p-3 pb-24 sm:p-4 sm:pb-28 md:p-8 md:pb-8">
-          <div className="shrink-0 pb-3 text-white sm:pb-5">
+        <div className="relative flex h-full min-h-0 flex-col p-3 pb-24 sm:p-4 sm:pb-28 md:p-6 md:pb-6">
+          <div className="shrink-0 pb-2 text-white md:pb-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-3xl font-black leading-none sm:text-4xl">My Day</h1>
-                <p className="mt-1 text-sm text-white/75">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                <h1 className="text-3xl font-black leading-none md:text-[2.7rem]">My Day</h1>
+                <p className="mt-1 text-xs font-semibold text-white/75 md:text-sm">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
               </div>
-              <div className="flex w-full items-center gap-2 rounded-2xl bg-black/25 p-2 backdrop-blur-xl sm:w-auto">
-                <Search size={18} />
+              <div className="flex w-full items-center gap-2 rounded-xl bg-black/25 px-3 py-2 backdrop-blur-xl sm:w-auto">
+                <Search size={17} />
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:w-40 sm:flex-none" />
               </div>
             </div>
-            <div className="mt-3 inline-flex max-w-full rounded-xl bg-black/25 px-3 py-2 text-xs font-semibold backdrop-blur-xl sm:text-sm">
+            <div className="mt-2 inline-flex max-w-full rounded-lg bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-xl">
               {activeTeam ? `${activeTeam.name} - ${bundleLabel(activeBundleId, bundles)} - ${labelForFilter(taskFilter)}` : 'Create or join a group'}
             </div>
           </div>
 
-          <div className="mb-3 shrink-0">
-            <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="mb-2 shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-1.5">
               <BundleButton label="All" count={tasks.length} active={activeBundleId === 'all'} onClick={() => setActiveBundleId('all')} />
               <BundleButton label="No bundle" count={tasks.filter((task) => !task.bundleId).length} active={activeBundleId === 'none'} onClick={() => setActiveBundleId('none')} />
               {bundles.map((bundle) => <BundleButton key={bundle.id} label={bundle.name} count={tasks.filter((task) => task.bundleId === bundle.id).length} active={activeBundleId === bundle.id} onClick={() => setActiveBundleId(bundle.id)} />)}
             </div>
-            <form onSubmit={addBundle} className="flex items-center gap-2 rounded-xl bg-black/30 px-3 py-2 text-white backdrop-blur-xl">
-              <FolderKanban size={16} className="shrink-0 text-cyan-200" />
-              <input value={bundleName} onChange={(event) => setBundleName(event.target.value)} placeholder="Create bundle / project" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/50" />
-              <button className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold transition hover:bg-white/20">Create</button>
+            <form onSubmit={addBundle} className="flex items-center gap-2 rounded-lg bg-black/30 px-3 py-1.5 text-white backdrop-blur-xl">
+              <FolderKanban size={15} className="shrink-0 text-cyan-200" />
+              <input value={bundleName} onChange={(event) => setBundleName(event.target.value)} placeholder="New bundle" className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-white/50" />
+              <button className="rounded-md bg-white/10 px-3 py-1 text-xs font-bold transition hover:bg-white/20">Create</button>
             </form>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             <AnimatePresence>
               {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
             </AnimatePresence>
@@ -95,10 +95,10 @@ export function TodoTaskList() {
             {filteredTasks.length === 0 && <div className="rounded-xl bg-black/45 p-5 text-center text-sm font-semibold text-white/70 backdrop-blur-xl">No tasks found in this view.</div>}
           </div>
 
-          <form onSubmit={addTask} className="mt-3 flex shrink-0 items-center gap-2 rounded-xl bg-black/80 px-3 py-2 text-white shadow-2xl backdrop-blur-xl sm:mt-4 sm:gap-3 sm:px-4 sm:py-3">
-            <Plus size={18} />
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={activeBundleId === 'all' || activeBundleId === 'none' ? 'Add a task' : `Add task to ${bundleLabel(activeBundleId, bundles)}`} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:text-base" />
-            <button className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-cyan-400 sm:px-4">Add</button>
+          <form onSubmit={addTask} className="mt-3 flex shrink-0 items-center gap-3 rounded-xl bg-black/85 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
+            <Plus size={20} />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={activeBundleId === 'all' || activeBundleId === 'none' ? 'Add a task' : `Add task to ${bundleLabel(activeBundleId, bundles)}`} className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-white/60" />
+            <button className="rounded-lg bg-cyan-500 px-5 py-2.5 text-sm font-black text-white transition hover:bg-cyan-400">Add</button>
           </form>
         </div>
       </section>
@@ -115,11 +115,11 @@ function TaskRow({ task, currentUserId, canWorkTasks, canDeleteTasks, selected, 
   const canCancel = working && task.startedBy === currentUserId;
   const canComplete = canWorkTasks && !completed && (!working || task.startedBy === currentUserId);
   return (
-    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-white backdrop-blur-xl transition sm:gap-3 sm:py-3 ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
-      <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
+    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex min-h-[74px] cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-white backdrop-blur-xl transition ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
+      <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={14} /> : <Circle size={14} className="opacity-0" />}</button>
       <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm font-medium ${completed ? 'line-through text-white/55' : ''}`}>{task.title}</p>
-        <p className="mt-0.5 text-xs text-white/50">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
+        <p className={`truncate text-base font-black ${completed ? 'line-through text-white/55' : ''}`}>{task.title}</p>
+        <p className="mt-1 truncate text-sm text-white/55">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
       </div>
       {canWorkTasks && canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="shrink-0 rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
       {canWorkTasks && completed && <button onClick={(event) => { event.stopPropagation(); onReopen?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 transition hover:bg-cyan-500" title="Uncomplete"><RotateCcw size={14} /></button>}
