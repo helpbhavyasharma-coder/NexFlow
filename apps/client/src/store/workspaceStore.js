@@ -7,9 +7,13 @@ export const useWorkspaceStore = create((set, get) => ({
   teams: [],
   activeTeam: null,
   tasks: [],
+  taskFilter: 'all',
   notifications: [],
   analytics: null,
   onlineUsers: [],
+  setTaskFilter(taskFilter) {
+    set({ taskFilter });
+  },
   async loadTeams() {
     const { data } = await api.get('/teams');
     set({ teams: data, activeTeam: get().activeTeam || data[0] || null });
@@ -27,7 +31,9 @@ export const useWorkspaceStore = create((set, get) => ({
     set({ tasks: data });
   },
   async createTask(payload) {
-    await api.post('/tasks', payload);
+    const { data } = await api.post('/tasks', payload);
+    get().upsertTask(data);
+    set({ teams: get().teams.map((team) => team.id === data.teamId ? { ...team, tasks: [data, ...(team.tasks || []).filter((task) => task.id !== data.id)] } : team) });
   },
   async createTeam(payload) {
     const { data } = await api.post('/teams', payload);
@@ -49,6 +55,10 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   async completeTask(taskId) {
     const { data } = await api.patch(`/tasks/${taskId}/complete`);
+    get().upsertTask(data);
+  },
+  async cancelTask(taskId) {
+    const { data } = await api.patch(`/tasks/${taskId}/cancel`);
     get().upsertTask(data);
   },
   upsertTask(task) {

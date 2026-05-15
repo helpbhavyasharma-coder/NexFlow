@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { addComment, completeTask, createTask, listTasks, startTask, updateTask } from '../controllers/task.controller.js';
+import { addComment, cancelTask, completeTask, createTask, listTasks, startTask, updateTask } from '../controllers/task.controller.js';
 import { auth } from '../middleware/auth.js';
 import { minRole, requireTeamRole } from '../middleware/permissions.js';
 import { commentSchema, taskSchema, validate } from '../validations/schemas.js';
@@ -16,6 +16,7 @@ taskRoutes.post('/', validate(taskSchema), requireTeamRole, minRole('MEMBER'), c
 taskRoutes.patch('/:taskId', updateTask);
 taskRoutes.patch('/:taskId/start', startTask);
 taskRoutes.patch('/:taskId/complete', completeTask);
+taskRoutes.patch('/:taskId/cancel', cancelTask);
 taskRoutes.post('/:taskId/comments', validate(commentSchema), addComment);
 taskRoutes.post('/:taskId/attachments', upload.single('file'), async (req, res) => {
   const task = await prisma.task.findUnique({ where: { id: req.params.taskId } });

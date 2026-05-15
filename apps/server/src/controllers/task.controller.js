@@ -34,6 +34,7 @@ export async function updateTask(req, res) {
 export async function startTask(req, res) {
   const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
   if (!existing) return res.status(404).json({ message: 'Task not found' });
+  if (existing.status === 'COMPLETED') return res.status(409).json({ message: 'Completed task cannot be started' });
   if (existing.status === 'IN_PROGRESS' && existing.startedBy && existing.startedBy !== req.user.id) return res.status(409).json({ message: 'Another teammate is already working on this task' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'IN_PROGRESS', startedBy: req.user.id, startedAt: new Date() }, include: includeTask });
   const io = req.app.get('io');
@@ -47,6 +48,21 @@ export async function completeTask(req, res) {
   const io = req.app.get('io');
   io?.to(`team:${task.teamId}`).emit('task_completed', task);
   await notifyTeam(task.teamId, `${req.user.username} completed ${task.title}`, io);
+  res.json(task);
+}
+
+export async function cancelTask(req, res) {
+  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
+  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  if (existing.startedBy && existing.startedBy !== req.user.id) return res.status(403).json({ message: 'Only the teammate working on this task can cancel it' });
+  const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'PENDING', startedBy: null, startedAt: null }, include: includeTask });
+  req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
+  res.json(task);
+}
+
+export async function reopenTask(req, res) {
+  const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'PENDING', completedBy: null, completedAt: null, startedBy: null, startedAt: null }, include: includeTask });
+  req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
   res.json(task);
 }
 
