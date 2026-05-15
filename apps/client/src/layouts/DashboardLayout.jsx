@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, Copy, LogOut, Plus, Search, Sun, UserPlus, Users, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Copy, Crown, LogOut, MessageCircle, Plus, Search, Shield, Sun, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,11 +8,13 @@ import { useWorkspaceStore } from '../store/workspaceStore.js';
 
 export function DashboardLayout() {
   const { user, logout, updateProfile } = useAuthStore();
-  const { teams, activeTeam, tasks, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam } = useWorkspaceStore();
+  const { teams, activeTeam, tasks, chatMessages, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam, sendChatMessage, updateMemberRole, removeMember, leaveTeam } = useWorkspaceStore();
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [chatText, setChatText] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [teamHubOpen, setTeamHubOpen] = useState(false);
   const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
   const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
 
@@ -45,11 +47,26 @@ export function DashboardLayout() {
     toast.success('Invite code copied');
   }
 
+  async function handleSendChat(event) {
+    event.preventDefault();
+    if (!chatText.trim()) return;
+    await sendChatMessage(chatText.trim());
+    setChatText('');
+  }
+
+  async function handleLeaveTeam() {
+    if (!activeTeam || !window.confirm(`Leave "${activeTeam.name}"?`)) return;
+    await leaveTeam(activeTeam.id);
+    setTeamHubOpen(false);
+    setMobileMenuOpen(false);
+  }
+
   const activeCount = tasks.filter((task) => task.status !== 'COMPLETED').length;
   const workingCount = tasks.filter((task) => task.status === 'IN_PROGRESS').length;
   const completedCount = tasks.filter((task) => task.status === 'COMPLETED').length;
   const myMembership = activeTeam?.members?.find((member) => member.userId === user?.id);
   const owner = activeTeam?.members?.find((member) => member.role === 'OWNER')?.user;
+  const canManageMembers = myMembership?.role === 'OWNER';
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-slate-950 text-white">
@@ -86,6 +103,7 @@ export function DashboardLayout() {
             <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
             <p className="mt-1 truncate text-white/55">Group admin: {owner?.username || 'Unknown'}</p>
             {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
+            <button onClick={() => setTeamHubOpen(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub</button>
           </div>
 
           <div className="mt-4 pr-1">
@@ -154,6 +172,7 @@ export function DashboardLayout() {
               <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
               <p className="mt-1 truncate text-white/55">Admin: {owner?.username || 'Unknown'}</p>
               {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
+              <button onClick={() => { setTeamHubOpen(true); setMobileMenuOpen(false); }} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub</button>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -176,6 +195,81 @@ export function DashboardLayout() {
               <button className="rounded-lg bg-white/10 px-3" title="Create group"><Plus size={16} /></button>
             </form>
           </div>
+        </div>
+      )}
+      {teamHubOpen && activeTeam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm">
+          <section className="grid max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl lg:grid-cols-[1fr_380px]">
+            <div className="flex min-h-[420px] flex-col overflow-hidden border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-black">Team Chat</h2>
+                  <p className="text-sm text-white/50">{activeTeam.name} · {activeTeam.members?.length || 0} members · {onlineUsers.length} online</p>
+                </div>
+                <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+              </div>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+                {chatMessages.length ? chatMessages.map((message) => (
+                  <div key={message.id} className={`flex gap-2 ${message.userId === user?.id ? 'justify-end' : 'justify-start'}`}>
+                    {message.userId !== user?.id && <img src={lightAvatar(message.user?.avatar) || maleAvatar(message.user?.username || 'user')} className="h-8 w-8 rounded-full bg-white" />}
+                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 ${message.userId === user?.id ? 'bg-cyan-500 text-white' : 'bg-white/10'}`}>
+                      <div className="mb-1 text-[11px] font-black uppercase opacity-70">{message.user?.username || 'Member'}</div>
+                      <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                    </div>
+                  </div>
+                )) : <div className="grid h-full place-items-center rounded-2xl bg-white/5 p-6 text-center text-sm text-white/55">No messages yet.</div>}
+              </div>
+              <form onSubmit={handleSendChat} className="mt-4 flex gap-2 rounded-2xl bg-white/10 p-2">
+                <input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Message your team" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-white/45" />
+                <button className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black">Send</button>
+              </form>
+            </div>
+
+            <aside className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4">
+              <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="font-black">Group Overview</h3>
+                  <span className="rounded-full bg-cyan-500/20 px-2 py-1 text-xs font-bold text-cyan-200">{myMembership?.role || 'MEMBER'}</span>
+                </div>
+                <p className="text-sm font-bold">{activeTeam.name}</p>
+                <p className="text-xs text-white/50">Owner: {owner?.username || 'Unknown'}</p>
+                {myMembership?.role !== 'OWNER' && <button onClick={handleLeaveTeam} className="mt-3 w-full rounded-xl bg-rose-500/20 px-3 py-2 text-sm font-black text-rose-100 hover:bg-rose-500">Leave Group</button>}
+              </div>
+
+              <div className="space-y-2">
+                {activeTeam.members?.map((member) => {
+                  const isOwner = member.role === 'OWNER';
+                  const isSelf = member.userId === user?.id;
+                  return (
+                    <div key={member.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <div className="flex items-center gap-3">
+                        <img src={lightAvatar(member.user?.avatar) || maleAvatar(member.user?.email || member.user?.username || 'member')} className="h-10 w-10 rounded-full bg-white" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-black">{member.user?.username || 'Member'} {isSelf ? '(You)' : ''}</p>
+                          <p className="truncate text-xs text-white/45">{member.user?.email}</p>
+                        </div>
+                        <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-black">{member.role}</span>
+                      </div>
+                      {canManageMembers && !isSelf && (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {['VIEWER', 'MEMBER', 'ADMIN', 'OWNER'].map((role) => (
+                            <button key={role} onClick={() => updateMemberRole(member.id, role)} className={`rounded-lg px-2 py-1.5 text-xs font-black ${member.role === role ? 'bg-cyan-500 text-white' : 'bg-white/10 text-white/70'}`}>{role}</button>
+                          ))}
+                          {!isOwner && <button onClick={() => window.confirm(`Remove ${member.user?.username || 'member'}?`) && removeMember(member.id)} className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-rose-500/20 px-2 py-2 text-xs font-black text-rose-100 hover:bg-rose-500"><UserMinus size={14} /> Remove</button>}
+                        </div>
+                      )}
+                      {!canManageMembers && (
+                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 text-xs text-white/55">
+                          {member.role === 'VIEWER' ? <Shield size={14} /> : member.role === 'OWNER' ? <Crown size={14} /> : <Users size={14} />}
+                          <span>{member.role === 'VIEWER' ? 'View only' : member.role === 'OWNER' ? 'Group owner' : 'Can work on tasks'}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+          </section>
         </div>
       )}
       {profileOpen && (

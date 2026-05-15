@@ -10,6 +10,7 @@ export const useWorkspaceStore = create((set, get) => ({
   bundles: [],
   activeBundleId: 'all',
   taskFilter: 'all',
+  chatMessages: [],
   notifications: [],
   analytics: null,
   onlineUsers: [],
@@ -29,7 +30,7 @@ export const useWorkspaceStore = create((set, get) => ({
     const activeTeam = get().teams.find((team) => team.id === teamId) || get().activeTeam;
     set({ activeTeam, activeBundleId: 'all' });
     getSocket()?.emit('team_join', teamId);
-    await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadAnalytics(teamId)]);
+    await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadChatMessages(teamId), get().loadAnalytics(teamId)]);
   },
   async loadBundles(teamId = get().activeTeam?.id) {
     if (!teamId) return;
@@ -41,6 +42,16 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.get(`/tasks/team/${teamId}`);
     set({ tasks: data });
     set({ teams: get().teams.map((team) => team.id === teamId ? { ...team, tasks: data } : team) });
+  },
+  async loadChatMessages(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.get(`/chat/team/${teamId}`);
+    set({ chatMessages: data });
+  },
+  async sendChatMessage(content, teamId = get().activeTeam?.id) {
+    if (!teamId || !content.trim()) return;
+    const { data } = await api.post('/chat', { teamId, content });
+    get().upsertChatMessage(data);
   },
   async createTask(payload) {
     const { data } = await api.post('/tasks', payload);
@@ -84,6 +95,30 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.delete(`/tasks/${taskId}`);
     get().removeTask(data);
   },
+  async updateMemberRole(memberId, role, teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.patch(`/teams/${teamId}/members/${memberId}/role`, { role });
+    get().upsertTeam(data);
+  },
+  async removeMember(memberId, teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.delete(`/teams/${teamId}/members/${memberId}`);
+    get().upsertTeam(data);
+  },
+  async leaveTeam(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    await api.post(`/teams/${teamId}/leave`);
+    const remainingTeams = get().teams.filter((team) => team.id !== teamId);
+    set({ teams: remainingTeams, activeTeam: remainingTeams[0] || null, tasks: [], bundles: [], chatMessages: [] });
+    if (remainingTeams[0]) await get().selectTeam(remainingTeams[0].id);
+  },
+  upsertTeam(team) {
+    if (!team?.id) return;
+    set({
+      teams: [team, ...get().teams.filter((item) => item.id !== team.id)],
+      activeTeam: get().activeTeam?.id === team.id ? team : get().activeTeam,
+    });
+  },
   upsertTask(task) {
     if (!task?.id || !task?.title) return;
     const activeTeamId = get().activeTeam?.id;
@@ -98,6 +133,10 @@ export const useWorkspaceStore = create((set, get) => ({
       tasks: get().tasks.filter((item) => item.id !== task.id),
       teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: (team.tasks || []).filter((item) => item.id !== task.id) } : team),
     });
+  },
+  upsertChatMessage(message) {
+    if (!message?.id || message.teamId !== get().activeTeam?.id) return;
+    set({ chatMessages: [...get().chatMessages.filter((item) => item.id !== message.id), message] });
   },
   async addComment(taskId, content) {
     await api.post(`/tasks/${taskId}/comments`, { content });
@@ -120,7 +159,7 @@ export const useWorkspaceStore = create((set, get) => ({
       if (!teamId) return;
       socket.emit('team_join', teamId);
       try {
-        await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
+        await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadChatMessages(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
       } catch {
         // Realtime recovery should never break the visible app if one refresh request fails.
       }
@@ -134,6 +173,12 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('task_started').on('task_started', get().upsertTask);
     socket.off('task_completed').on('task_completed', get().upsertTask);
     socket.off('task_deleted').on('task_deleted', get().removeTask);
+    socket.off('chat_message').on('chat_message', get().upsertChatMessage);
+    socket.off('team_updated').on('team_updated', get().upsertTeam);
+    socket.off('team_removed').on('team_removed', ({ teamId }) => {
+      const remainingTeams = get().teams.filter((team) => team.id !== teamId);
+      set({ teams: remainingTeams, activeTeam: get().activeTeam?.id === teamId ? remainingTeams[0] || null : get().activeTeam });
+    });
     socket.off('bundle_created').on('bundle_created', (bundle) => {
       if (bundle.teamId !== get().activeTeam?.id) return;
       set({ bundles: [...get().bundles.filter((item) => item.id !== bundle.id), bundle] });

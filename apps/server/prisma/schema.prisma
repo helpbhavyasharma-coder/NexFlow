@@ -42,6 +42,7 @@ model User {
   started      Task[]         @relation("TaskStarted")
   completed    Task[]         @relation("TaskCompleted")
   comments     Comment[]
+  chatMessages ChatMessage[]
   notifications Notification[]
   activities   Activity[]
 }
@@ -57,7 +58,18 @@ model Team {
   members     TeamMember[]
   bundles     TaskBundle[]
   tasks       Task[]
+  messages     ChatMessage[]
   activities  Activity[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TaskBundle {

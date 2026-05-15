@@ -3,6 +3,25 @@ import { createActivity } from '../services/activity.service.js';
 import { notifyTeam } from '../services/notification.service.js';
 
 const includeTask = { bundle: true, assignee: { select: { id: true, username: true, avatar: true } }, starter: { select: { id: true, username: true, avatar: true } }, completer: { select: { id: true, username: true, avatar: true } }, comments: { include: { user: { select: { id: true, username: true, avatar: true } } }, orderBy: { createdAt: 'asc' } }, attachments: true };
+const rank = { VIEWER: 1, MEMBER: 2, ADMIN: 3, OWNER: 4 };
+
+async function requireTaskRole(req, res, minimum = 'VIEWER') {
+  const task = await prisma.task.findUnique({ where: { id: req.params.taskId } });
+  if (!task) {
+    res.status(404).json({ message: 'Task not found' });
+    return null;
+  }
+  const member = await prisma.teamMember.findUnique({ where: { userId_teamId: { userId: req.user.id, teamId: task.teamId } } });
+  if (!member) {
+    res.status(403).json({ message: 'Team access denied' });
+    return null;
+  }
+  if (rank[member.role] < rank[minimum]) {
+    res.status(403).json({ message: 'Insufficient permissions' });
+    return null;
+  }
+  return task;
+}
 
 export async function listTasks(req, res) {
   const where = { teamId: req.params.teamId };
@@ -31,14 +50,16 @@ export async function createTask(req, res) {
 }
 
 export async function updateTask(req, res) {
+  const existing = await requireTaskRole(req, res, 'MEMBER');
+  if (!existing) return;
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: req.body, include: includeTask });
   req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
   res.json(task);
 }
 
 export async function startTask(req, res) {
-  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  const existing = await requireTaskRole(req, res, 'MEMBER');
+  if (!existing) return;
   if (existing.status === 'COMPLETED') return res.status(409).json({ message: 'Completed task cannot be started' });
   if (existing.status === 'IN_PROGRESS' && existing.startedBy && existing.startedBy !== req.user.id) return res.status(409).json({ message: 'Another teammate is already working on this task' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'IN_PROGRESS', startedBy: req.user.id, startedAt: new Date() }, include: includeTask });
@@ -49,8 +70,8 @@ export async function startTask(req, res) {
 }
 
 export async function completeTask(req, res) {
-  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  const existing = await requireTaskRole(req, res, 'MEMBER');
+  if (!existing) return;
   if (existing.status === 'IN_PROGRESS' && existing.startedBy && existing.startedBy !== req.user.id) return res.status(403).json({ message: 'Only the teammate working on this task can complete it' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'COMPLETED', completedBy: req.user.id, completedAt: new Date() }, include: includeTask });
   const io = req.app.get('io');
@@ -60,8 +81,8 @@ export async function completeTask(req, res) {
 }
 
 export async function cancelTask(req, res) {
-  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  const existing = await requireTaskRole(req, res, 'MEMBER');
+  if (!existing) return;
   if (existing.startedBy && existing.startedBy !== req.user.id) return res.status(403).json({ message: 'Only the teammate working on this task can cancel it' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'PENDING', startedBy: null, startedAt: null }, include: includeTask });
   req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
@@ -69,24 +90,24 @@ export async function cancelTask(req, res) {
 }
 
 export async function reopenTask(req, res) {
-  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  const existing = await requireTaskRole(req, res, 'MEMBER');
+  if (!existing) return;
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'PENDING', completedBy: null, completedAt: null, startedBy: null, startedAt: null }, include: includeTask });
   req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
   res.json(task);
 }
 
 export async function deleteTask(req, res) {
-  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  const existing = await requireTaskRole(req, res, 'ADMIN');
+  if (!existing) return;
   await prisma.task.delete({ where: { id: req.params.taskId } });
   req.app.get('io')?.to(`team:${existing.teamId}`).emit('task_deleted', { id: existing.id, teamId: existing.teamId });
   res.json({ id: existing.id, teamId: existing.teamId });
 }
 
 export async function addComment(req, res) {
-  const task = await prisma.task.findUnique({ where: { id: req.params.taskId } });
-  if (!task) return res.status(404).json({ message: 'Task not found' });
+  const task = await requireTaskRole(req, res, 'MEMBER');
+  if (!task) return;
   const comment = await prisma.comment.create({ data: { taskId: task.id, userId: req.user.id, content: req.body.content }, include: { user: { select: { id: true, username: true, avatar: true } } } });
   req.app.get('io')?.to(`team:${task.teamId}`).emit('comment_created', { taskId: task.id, comment });
   res.status(201).json(comment);

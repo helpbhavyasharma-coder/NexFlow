@@ -28,6 +28,9 @@ export function TodoTaskList() {
   }), [tasks, search, taskFilter]);
   const activeTasks = filteredTasks.filter((task) => task.status !== 'COMPLETED');
   const completedTasks = filteredTasks.filter((task) => task.status === 'COMPLETED');
+  const myRole = activeTeam?.members?.find((member) => member.userId === user?.id)?.role || 'VIEWER';
+  const canWorkTasks = ['MEMBER', 'ADMIN', 'OWNER'].includes(myRole);
+  const canDeleteTasks = ['ADMIN', 'OWNER'].includes(myRole);
 
   async function addTask(event) {
     event.preventDefault();
@@ -79,13 +82,13 @@ export function TodoTaskList() {
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             <AnimatePresence>
-              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
+              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
             </AnimatePresence>
 
             {completedTasks.length > 0 && (
               <div className="pt-2">
                 <button onClick={() => setShowCompleted(!showCompleted)} className="mb-2 flex items-center gap-2 rounded-lg bg-black/35 px-3 py-2 text-sm font-semibold text-white backdrop-blur-xl"><ChevronDown size={16} className={showCompleted ? '' : '-rotate-90'} /> Completed <span className="rounded bg-white/15 px-2">{completedTasks.length}</span></button>
-                {showCompleted && <div className="space-y-2">{completedTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} completed selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onReopen={() => reopenTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}</div>}
+                {showCompleted && <div className="space-y-2">{completedTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} completed selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onReopen={() => reopenTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}</div>}
               </div>
             )}
 
@@ -101,16 +104,16 @@ export function TodoTaskList() {
       </section>
 
       <aside className="hidden min-h-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/90 text-white shadow-2xl xl:block">
-        {selectedTask ? <TaskDetail task={selectedTask} currentUserId={user?.id} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onReopen={() => reopenTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} onDelete={() => handleDeleteTask(selectedTask, deleteTask, selectedTaskId, setSelectedTaskId)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
+        {selectedTask ? <TaskDetail task={selectedTask} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onReopen={() => reopenTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} onDelete={() => handleDeleteTask(selectedTask, deleteTask, selectedTaskId, setSelectedTaskId)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
       </aside>
     </div>
   );
 }
 
-function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, onComplete, onReopen, onCancel, onDelete }) {
+function TaskRow({ task, currentUserId, canWorkTasks, canDeleteTasks, selected, completed, onSelect, onStart, onComplete, onReopen, onCancel, onDelete }) {
   const working = task.status === 'IN_PROGRESS';
   const canCancel = working && task.startedBy === currentUserId;
-  const canComplete = !completed && (!working || task.startedBy === currentUserId);
+  const canComplete = canWorkTasks && !completed && (!working || task.startedBy === currentUserId);
   return (
     <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-white backdrop-blur-xl transition sm:gap-3 sm:py-3 ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
       <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
@@ -118,19 +121,19 @@ function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, 
         <p className={`truncate text-sm font-medium ${completed ? 'line-through text-white/55' : ''}`}>{task.title}</p>
         <p className="mt-0.5 text-xs text-white/50">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
       </div>
-      {canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="shrink-0 rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
-      {completed && <button onClick={(event) => { event.stopPropagation(); onReopen?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 transition hover:bg-cyan-500" title="Uncomplete"><RotateCcw size={14} /></button>}
-      {!working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
-      <button onClick={(event) => { event.stopPropagation(); onDelete?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Delete task"><Trash2 size={14} /></button>
+      {canWorkTasks && canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="shrink-0 rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
+      {canWorkTasks && completed && <button onClick={(event) => { event.stopPropagation(); onReopen?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 transition hover:bg-cyan-500" title="Uncomplete"><RotateCcw size={14} /></button>}
+      {canWorkTasks && !working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
+      {canDeleteTasks && <button onClick={(event) => { event.stopPropagation(); onDelete?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Delete task"><Trash2 size={14} /></button>}
       <Star size={18} className="shrink-0 text-white/55" />
     </motion.div>
   );
 }
 
-function TaskDetail({ task, currentUserId, onStart, onComplete, onReopen, onCancel, onDelete }) {
+function TaskDetail({ task, currentUserId, canWorkTasks, canDeleteTasks, onStart, onComplete, onReopen, onCancel, onDelete }) {
   const working = task.status === 'IN_PROGRESS';
   const canCancel = working && task.startedBy === currentUserId;
-  const canComplete = task.status !== 'COMPLETED' && (!working || task.startedBy === currentUserId);
+  const canComplete = canWorkTasks && task.status !== 'COMPLETED' && (!working || task.startedBy === currentUserId);
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-6">
       <div className="rounded-3xl bg-white/10 p-5">
@@ -145,11 +148,11 @@ function TaskDetail({ task, currentUserId, onStart, onComplete, onReopen, onCanc
         {task.starter && <DetailItem icon={<UserPlus size={16} />} label="Working" value={`${task.starter.username} is working on it`} />}
       </div>
       <div className="mt-auto grid gap-3">
-        {canCancel && <button onClick={onCancel} className="rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white">Cancel Working</button>}
-        {!working && task.status !== 'COMPLETED' && <button onClick={onStart} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Start Working</button>}
+        {canWorkTasks && canCancel && <button onClick={onCancel} className="rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white">Cancel Working</button>}
+        {canWorkTasks && !working && task.status !== 'COMPLETED' && <button onClick={onStart} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Start Working</button>}
         {canComplete && <button onClick={onComplete} className="rounded-2xl bg-white px-4 py-3 font-bold text-slate-950">Mark Complete</button>}
-        {task.status === 'COMPLETED' && <button onClick={onReopen} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Mark Uncomplete</button>}
-        <button onClick={onDelete} className="rounded-2xl bg-rose-500/20 px-4 py-3 font-bold text-rose-100 transition hover:bg-rose-500">Delete Task</button>
+        {canWorkTasks && task.status === 'COMPLETED' && <button onClick={onReopen} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Mark Uncomplete</button>}
+        {canDeleteTasks && <button onClick={onDelete} className="rounded-2xl bg-rose-500/20 px-4 py-3 font-bold text-rose-100 transition hover:bg-rose-500">Delete Task</button>}
       </div>
     </div>
   );
