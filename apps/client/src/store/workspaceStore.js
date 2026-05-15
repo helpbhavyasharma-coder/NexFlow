@@ -72,9 +72,17 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.patch(`/tasks/${taskId}/complete`);
     get().upsertTask(data);
   },
+  async reopenTask(taskId) {
+    const { data } = await api.patch(`/tasks/${taskId}/reopen`);
+    get().upsertTask(data);
+  },
   async cancelTask(taskId) {
     const { data } = await api.patch(`/tasks/${taskId}/cancel`);
     get().upsertTask(data);
+  },
+  async deleteTask(taskId) {
+    const { data } = await api.delete(`/tasks/${taskId}`);
+    get().removeTask(data);
   },
   upsertTask(task) {
     if (!task?.id || !task?.title) return;
@@ -82,6 +90,13 @@ export const useWorkspaceStore = create((set, get) => ({
     set({
       tasks: task.teamId === activeTeamId ? [task, ...get().tasks.filter((item) => item.id !== task.id)] : get().tasks,
       teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: [task, ...(team.tasks || []).filter((item) => item.id !== task.id)] } : team),
+    });
+  },
+  removeTask(task) {
+    if (!task?.id) return;
+    set({
+      tasks: get().tasks.filter((item) => item.id !== task.id),
+      teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: (team.tasks || []).filter((item) => item.id !== task.id) } : team),
     });
   },
   async addComment(taskId, content) {
@@ -118,6 +133,7 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('task_updated').on('task_updated', get().upsertTask);
     socket.off('task_started').on('task_started', get().upsertTask);
     socket.off('task_completed').on('task_completed', get().upsertTask);
+    socket.off('task_deleted').on('task_deleted', get().removeTask);
     socket.off('bundle_created').on('bundle_created', (bundle) => {
       if (bundle.teamId !== get().activeTeam?.id) return;
       set({ bundles: [...get().bundles.filter((item) => item.id !== bundle.id), bundle] });

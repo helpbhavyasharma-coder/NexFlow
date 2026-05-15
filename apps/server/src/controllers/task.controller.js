@@ -69,9 +69,19 @@ export async function cancelTask(req, res) {
 }
 
 export async function reopenTask(req, res) {
+  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
+  if (!existing) return res.status(404).json({ message: 'Task not found' });
   const task = await prisma.task.update({ where: { id: req.params.taskId }, data: { status: 'PENDING', completedBy: null, completedAt: null, startedBy: null, startedAt: null }, include: includeTask });
   req.app.get('io')?.to(`team:${task.teamId}`).emit('task_updated', task);
   res.json(task);
+}
+
+export async function deleteTask(req, res) {
+  const existing = await prisma.task.findUnique({ where: { id: req.params.taskId } });
+  if (!existing) return res.status(404).json({ message: 'Task not found' });
+  await prisma.task.delete({ where: { id: req.params.taskId } });
+  req.app.get('io')?.to(`team:${existing.teamId}`).emit('task_deleted', { id: existing.id, teamId: existing.teamId });
+  res.json({ id: existing.id, teamId: existing.teamId });
 }
 
 export async function addComment(req, res) {

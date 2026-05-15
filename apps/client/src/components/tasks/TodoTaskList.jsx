@@ -1,12 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, Check, ChevronDown, Circle, Clock, FolderKanban, MessageCircle, Play, Plus, Search, Star, UserPlus, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, Circle, Clock, FolderKanban, MessageCircle, Play, Plus, RotateCcw, Search, Star, Trash2, UserPlus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useWorkspaceStore } from '../../store/workspaceStore.js';
 
 export function TodoTaskList() {
   const user = useAuthStore((state) => state.user);
-  const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, cancelTask } = useWorkspaceStore();
+  const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, reopenTask, cancelTask, deleteTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
   const [bundleName, setBundleName] = useState('');
   const [search, setSearch] = useState('');
@@ -79,13 +79,13 @@ export function TodoTaskList() {
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
             <AnimatePresence>
-              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onCancel={() => cancelTask(task.id)} />)}
+              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
             </AnimatePresence>
 
             {completedTasks.length > 0 && (
               <div className="pt-2">
                 <button onClick={() => setShowCompleted(!showCompleted)} className="mb-2 flex items-center gap-2 rounded-lg bg-black/35 px-3 py-2 text-sm font-semibold text-white backdrop-blur-xl"><ChevronDown size={16} className={showCompleted ? '' : '-rotate-90'} /> Completed <span className="rounded bg-white/15 px-2">{completedTasks.length}</span></button>
-                {showCompleted && <div className="space-y-2">{completedTasks.map((task) => <TaskRow key={task.id} task={task} completed selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} />)}</div>}
+                {showCompleted && <div className="space-y-2">{completedTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} completed selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onReopen={() => reopenTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}</div>}
               </div>
             )}
 
@@ -101,13 +101,13 @@ export function TodoTaskList() {
       </section>
 
       <aside className="hidden min-h-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/90 text-white shadow-2xl xl:block">
-        {selectedTask ? <TaskDetail task={selectedTask} currentUserId={user?.id} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
+        {selectedTask ? <TaskDetail task={selectedTask} currentUserId={user?.id} onStart={() => startTask(selectedTask.id)} onComplete={() => completeTask(selectedTask.id)} onReopen={() => reopenTask(selectedTask.id)} onCancel={() => cancelTask(selectedTask.id)} onDelete={() => handleDeleteTask(selectedTask, deleteTask, selectedTaskId, setSelectedTaskId)} /> : <EmptyDetail activeTeam={activeTeam} tasks={tasks} />}
       </aside>
     </div>
   );
 }
 
-function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, onComplete, onCancel }) {
+function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, onComplete, onReopen, onCancel, onDelete }) {
   const working = task.status === 'IN_PROGRESS';
   const canCancel = working && task.startedBy === currentUserId;
   const canComplete = !completed && (!working || task.startedBy === currentUserId);
@@ -119,13 +119,15 @@ function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, 
         <p className="mt-0.5 text-xs text-white/50">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
       </div>
       {canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="shrink-0 rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
+      {completed && <button onClick={(event) => { event.stopPropagation(); onReopen?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 transition hover:bg-cyan-500" title="Uncomplete"><RotateCcw size={14} /></button>}
       {!working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
+      <button onClick={(event) => { event.stopPropagation(); onDelete?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Delete task"><Trash2 size={14} /></button>
       <Star size={18} className="shrink-0 text-white/55" />
     </motion.div>
   );
 }
 
-function TaskDetail({ task, currentUserId, onStart, onComplete, onCancel }) {
+function TaskDetail({ task, currentUserId, onStart, onComplete, onReopen, onCancel, onDelete }) {
   const working = task.status === 'IN_PROGRESS';
   const canCancel = working && task.startedBy === currentUserId;
   const canComplete = task.status !== 'COMPLETED' && (!working || task.startedBy === currentUserId);
@@ -146,6 +148,8 @@ function TaskDetail({ task, currentUserId, onStart, onComplete, onCancel }) {
         {canCancel && <button onClick={onCancel} className="rounded-2xl bg-rose-500 px-4 py-3 font-bold text-white">Cancel Working</button>}
         {!working && task.status !== 'COMPLETED' && <button onClick={onStart} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Start Working</button>}
         {canComplete && <button onClick={onComplete} className="rounded-2xl bg-white px-4 py-3 font-bold text-slate-950">Mark Complete</button>}
+        {task.status === 'COMPLETED' && <button onClick={onReopen} className="rounded-2xl bg-cyan-500 px-4 py-3 font-bold text-white">Mark Uncomplete</button>}
+        <button onClick={onDelete} className="rounded-2xl bg-rose-500/20 px-4 py-3 font-bold text-rose-100 transition hover:bg-rose-500">Delete Task</button>
       </div>
     </div>
   );
@@ -157,6 +161,12 @@ function DetailItem({ icon, label, value }) {
 
 function BundleButton({ label, count, active, onClick }) {
   return <button onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition ${active ? 'bg-cyan-500 text-white' : 'bg-black/35 text-white/75 hover:bg-black/50'}`}><span className="max-w-36 truncate">{label}</span><span className="rounded bg-black/20 px-2">{count}</span></button>;
+}
+
+async function handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId) {
+  if (!window.confirm(`Delete "${task.title}"?`)) return;
+  await deleteTask(task.id);
+  if (selectedTaskId === task.id) setSelectedTaskId(null);
 }
 
 function EmptyDetail({ activeTeam, tasks }) {
