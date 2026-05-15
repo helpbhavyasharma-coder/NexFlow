@@ -10,6 +10,7 @@ import { errorHandler, notFound } from './middleware/error.js';
 import { prisma } from './prisma/client.js';
 import { analyticsRoutes } from './routes/analytics.routes.js';
 import { authRoutes } from './routes/auth.routes.js';
+import { bundleRoutes } from './routes/bundle.routes.js';
 import { notificationRoutes } from './routes/notification.routes.js';
 import { taskRoutes } from './routes/task.routes.js';
 import { teamRoutes } from './routes/team.routes.js';
@@ -36,6 +37,7 @@ export function createApp() {
     }
   });
   app.use('/api/auth', authRoutes);
+  app.use('/api/bundles', bundleRoutes);
   app.use('/api/teams', teamRoutes);
   app.use('/api/tasks', taskRoutes);
   app.use('/api/notifications', notificationRoutes);

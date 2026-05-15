@@ -1,13 +1,14 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, Check, ChevronDown, Circle, Clock, MessageCircle, Play, Plus, Search, Star, UserPlus, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronDown, Circle, Clock, FolderKanban, MessageCircle, Play, Plus, Search, Star, UserPlus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuthStore } from '../../store/authStore.js';
 import { useWorkspaceStore } from '../../store/workspaceStore.js';
 
 export function TodoTaskList() {
   const user = useAuthStore((state) => state.user);
-  const { activeTeam, tasks, taskFilter, createTask, startTask, completeTask, cancelTask } = useWorkspaceStore();
+  const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, cancelTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
+  const [bundleName, setBundleName] = useState('');
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [showCompleted, setShowCompleted] = useState(true);
@@ -17,6 +18,8 @@ export function TodoTaskList() {
   const filteredTasks = useMemo(() => tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
+    if (activeBundleId === 'none' && task.bundleId) return false;
+    if (activeBundleId !== 'all' && activeBundleId !== 'none' && task.bundleId !== activeBundleId) return false;
     if (taskFilter === 'pending') return task.status === 'PENDING';
     if (taskFilter === 'working') return task.status === 'IN_PROGRESS';
     if (taskFilter === 'completed') return task.status === 'COMPLETED';
@@ -29,8 +32,15 @@ export function TodoTaskList() {
   async function addTask(event) {
     event.preventDefault();
     if (!title.trim() || !activeTeam) return;
-    await createTask({ teamId: activeTeam.id, title, priority: 'MEDIUM' });
+    await createTask({ teamId: activeTeam.id, bundleId: activeBundleId === 'all' || activeBundleId === 'none' ? null : activeBundleId, title, priority: 'MEDIUM' });
     setTitle('');
+  }
+
+  async function addBundle(event) {
+    event.preventDefault();
+    if (!bundleName.trim() || !activeTeam) return;
+    await createBundle({ teamId: activeTeam.id, name: bundleName.trim() });
+    setBundleName('');
   }
 
   return (
@@ -50,8 +60,21 @@ export function TodoTaskList() {
               </div>
             </div>
             <div className="mt-3 inline-flex max-w-full rounded-xl bg-black/25 px-3 py-2 text-xs font-semibold backdrop-blur-xl sm:text-sm">
-              {activeTeam ? `${activeTeam.name} - ${labelForFilter(taskFilter)}` : 'Create or join a group'}
+              {activeTeam ? `${activeTeam.name} - ${bundleLabel(activeBundleId, bundles)} - ${labelForFilter(taskFilter)}` : 'Create or join a group'}
             </div>
+          </div>
+
+          <div className="mb-3 shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              <BundleButton label="All" count={tasks.length} active={activeBundleId === 'all'} onClick={() => setActiveBundleId('all')} />
+              <BundleButton label="No bundle" count={tasks.filter((task) => !task.bundleId).length} active={activeBundleId === 'none'} onClick={() => setActiveBundleId('none')} />
+              {bundles.map((bundle) => <BundleButton key={bundle.id} label={bundle.name} count={tasks.filter((task) => task.bundleId === bundle.id).length} active={activeBundleId === bundle.id} onClick={() => setActiveBundleId(bundle.id)} />)}
+            </div>
+            <form onSubmit={addBundle} className="flex items-center gap-2 rounded-xl bg-black/30 px-3 py-2 text-white backdrop-blur-xl">
+              <FolderKanban size={16} className="shrink-0 text-cyan-200" />
+              <input value={bundleName} onChange={(event) => setBundleName(event.target.value)} placeholder="Create bundle / project" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/50" />
+              <button className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold transition hover:bg-white/20">Create</button>
+            </form>
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
@@ -71,7 +94,7 @@ export function TodoTaskList() {
 
           <form onSubmit={addTask} className="mt-3 flex shrink-0 items-center gap-2 rounded-xl bg-black/80 px-3 py-2 text-white shadow-2xl backdrop-blur-xl sm:mt-4 sm:gap-3 sm:px-4 sm:py-3">
             <Plus size={18} />
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add a task" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:text-base" />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={activeBundleId === 'all' || activeBundleId === 'none' ? 'Add a task' : `Add task to ${bundleLabel(activeBundleId, bundles)}`} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:text-base" />
             <button className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-cyan-400 sm:px-4">Add</button>
           </form>
         </div>
@@ -132,6 +155,10 @@ function DetailItem({ icon, label, value }) {
   return <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3"><span className="flex items-center gap-2 text-white/55">{icon}{label}</span><b>{value}</b></div>;
 }
 
+function BundleButton({ label, count, active, onClick }) {
+  return <button onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition ${active ? 'bg-cyan-500 text-white' : 'bg-black/35 text-white/75 hover:bg-black/50'}`}><span className="max-w-36 truncate">{label}</span><span className="rounded bg-black/20 px-2">{count}</span></button>;
+}
+
 function EmptyDetail({ activeTeam, tasks }) {
   return <div className="grid h-full place-items-center p-8 text-center"><div><h2 className="text-2xl font-black">{activeTeam?.name || 'NexFlow'}</h2><p className="mt-2 text-white/55">Select a task to see details, assignment, comments, and realtime work state.</p><div className="mt-6 rounded-3xl bg-white/10 p-5"><b className="text-4xl">{tasks.filter((task) => task.status === 'COMPLETED').length}</b><p className="text-sm text-white/55">tasks completed</p></div></div></div>;
 }
@@ -142,4 +169,10 @@ function labelForFilter(taskFilter) {
   if (taskFilter === 'completed') return 'Completed';
   if (taskFilter === 'active') return 'Not completed';
   return 'All tasks';
+}
+
+function bundleLabel(activeBundleId, bundles) {
+  if (activeBundleId === 'all') return 'All bundles';
+  if (activeBundleId === 'none') return 'No bundle';
+  return bundles.find((bundle) => bundle.id === activeBundleId)?.name || 'Bundle';
 }

@@ -4,7 +4,8 @@ export const registerSchema = z.object({ username: z.string().min(2), email: z.s
 export const loginSchema = z.object({ email: z.string().email(), password: z.string().min(1) });
 export const profileSchema = z.object({ username: z.string().min(2), avatar: z.string().url().optional().nullable() });
 export const teamSchema = z.object({ name: z.string().min(2), description: z.string().optional().nullable() });
-export const taskSchema = z.object({ teamId: z.string(), title: z.string().min(2), description: z.string().optional().nullable(), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(), deadline: z.string().datetime().optional().nullable(), assignedTo: z.string().optional().nullable() });
+export const bundleSchema = z.object({ teamId: z.string(), name: z.string().min(2).max(80), description: z.string().optional().nullable() });
+export const taskSchema = z.object({ teamId: z.string(), bundleId: z.string().optional().nullable(), title: z.string().min(2), description: z.string().optional().nullable(), priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(), deadline: z.string().datetime().optional().nullable(), assignedTo: z.string().optional().nullable() });
 export const commentSchema = z.object({ content: z.string().min(1).max(2000) });
 
 export function validate(schema) {

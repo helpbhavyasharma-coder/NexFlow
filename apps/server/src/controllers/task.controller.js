@@ -2,12 +2,13 @@ import { prisma } from '../prisma/client.js';
 import { createActivity } from '../services/activity.service.js';
 import { notifyTeam } from '../services/notification.service.js';
 
-const includeTask = { assignee: { select: { id: true, username: true, avatar: true } }, starter: { select: { id: true, username: true, avatar: true } }, completer: { select: { id: true, username: true, avatar: true } }, comments: { include: { user: { select: { id: true, username: true, avatar: true } } }, orderBy: { createdAt: 'asc' } }, attachments: true };
+const includeTask = { bundle: true, assignee: { select: { id: true, username: true, avatar: true } }, starter: { select: { id: true, username: true, avatar: true } }, completer: { select: { id: true, username: true, avatar: true } }, comments: { include: { user: { select: { id: true, username: true, avatar: true } } }, orderBy: { createdAt: 'asc' } }, attachments: true };
 
 export async function listTasks(req, res) {
   const where = { teamId: req.params.teamId };
   if (req.query.status) where.status = req.query.status;
   if (req.query.priority) where.priority = req.query.priority;
+  if (req.query.bundleId) where.bundleId = req.query.bundleId === 'none' ? null : req.query.bundleId;
   if (req.query.assignedTo) where.assignedTo = req.query.assignedTo;
   if (req.query.search) where.OR = [{ title: { contains: req.query.search, mode: 'insensitive' } }, { description: { contains: req.query.search, mode: 'insensitive' } }];
   const tasks = await prisma.task.findMany({ where, include: includeTask, orderBy: [{ status: 'asc' }, { createdAt: 'desc' }] });
@@ -16,6 +17,10 @@ export async function listTasks(req, res) {
 
 export async function createTask(req, res) {
   const data = { ...req.body, deadline: req.body.deadline ? new Date(req.body.deadline) : null };
+  if (data.bundleId) {
+    const bundle = await prisma.taskBundle.findFirst({ where: { id: data.bundleId, teamId: data.teamId } });
+    if (!bundle) return res.status(422).json({ message: 'Bundle does not belong to this group' });
+  }
   const task = await prisma.task.create({ data, include: includeTask });
   const io = req.app.get('io');
   const activity = await createActivity(task.teamId, req.user.id, `${req.user.username} created ${task.title}`);

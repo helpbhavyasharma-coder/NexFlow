@@ -7,6 +7,8 @@ export const useWorkspaceStore = create((set, get) => ({
   teams: [],
   activeTeam: null,
   tasks: [],
+  bundles: [],
+  activeBundleId: 'all',
   taskFilter: 'all',
   notifications: [],
   analytics: null,
@@ -15,6 +17,9 @@ export const useWorkspaceStore = create((set, get) => ({
   setTaskFilter(taskFilter) {
     set({ taskFilter });
   },
+  setActiveBundleId(activeBundleId) {
+    set({ activeBundleId });
+  },
   async loadTeams() {
     const { data } = await api.get('/teams');
     set({ teams: data, activeTeam: get().activeTeam || data[0] || null });
@@ -22,9 +27,14 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   async selectTeam(teamId) {
     const activeTeam = get().teams.find((team) => team.id === teamId) || get().activeTeam;
-    set({ activeTeam });
+    set({ activeTeam, activeBundleId: 'all' });
     getSocket()?.emit('team_join', teamId);
-    await Promise.all([get().loadTasks(teamId), get().loadAnalytics(teamId)]);
+    await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadAnalytics(teamId)]);
+  },
+  async loadBundles(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    const { data } = await api.get(`/bundles/team/${teamId}`);
+    set({ bundles: data });
   },
   async loadTasks(teamId = get().activeTeam?.id) {
     if (!teamId) return;
@@ -35,6 +45,10 @@ export const useWorkspaceStore = create((set, get) => ({
   async createTask(payload) {
     const { data } = await api.post('/tasks', payload);
     get().upsertTask(data);
+  },
+  async createBundle(payload) {
+    const { data } = await api.post('/bundles', payload);
+    set({ bundles: [...get().bundles.filter((bundle) => bundle.id !== data.id), data], activeBundleId: data.id });
   },
   async createTeam(payload) {
     const { data } = await api.post('/teams', payload);
@@ -91,7 +105,7 @@ export const useWorkspaceStore = create((set, get) => ({
       if (!teamId) return;
       socket.emit('team_join', teamId);
       try {
-        await Promise.all([get().loadTasks(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
+        await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
       } catch {
         // Realtime recovery should never break the visible app if one refresh request fails.
       }
@@ -104,6 +118,10 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('task_updated').on('task_updated', get().upsertTask);
     socket.off('task_started').on('task_started', get().upsertTask);
     socket.off('task_completed').on('task_completed', get().upsertTask);
+    socket.off('bundle_created').on('bundle_created', (bundle) => {
+      if (bundle.teamId !== get().activeTeam?.id) return;
+      set({ bundles: [...get().bundles.filter((item) => item.id !== bundle.id), bundle] });
+    });
     socket.off('notification_created').on('notification_created', (notification) => set({ notifications: [notification, ...get().notifications] }));
     socket.off('user_online').on('user_online', ({ userId }) => set({ onlineUsers: Array.from(new Set([...get().onlineUsers, userId])) }));
     socket.off('user_offline').on('user_offline', ({ userId }) => set({ onlineUsers: get().onlineUsers.filter((id) => id !== userId) }));
