@@ -12,6 +12,7 @@ export function DashboardLayout() {
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
   const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
 
@@ -51,7 +52,7 @@ export function DashboardLayout() {
   const owner = activeTeam?.members?.find((member) => member.role === 'OWNER')?.user;
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-950 text-white">
+    <div className="h-[100dvh] overflow-hidden bg-slate-950 text-white">
       <div className="flex h-full overflow-hidden">
         <aside className="hidden h-full w-72 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-black/45 p-4 backdrop-blur-2xl lg:flex">
           <button onClick={() => setProfileOpen(true)} className="mb-4 flex w-full items-center gap-3 rounded-2xl p-2 text-left transition hover:bg-white/10">
@@ -119,13 +120,66 @@ export function DashboardLayout() {
             <button onClick={logout} className="rounded-xl bg-white/10 p-3 transition hover:bg-white/20"><LogOut size={18} /></button>
           </div>
         </aside>
-        <main className="h-full min-w-0 flex-1 overflow-hidden p-3 md:p-4">
+        <main className="h-full min-w-0 flex-1 overflow-hidden p-2 sm:p-3 md:p-4">
           <Outlet />
         </main>
       </div>
-      <nav className="fixed bottom-3 left-3 right-3 z-40 flex justify-around rounded-2xl border border-white/10 bg-slate-950/90 p-3 text-white backdrop-blur-xl lg:hidden">
-        <button onClick={() => setProfileOpen(true)}><Sun /></button><button onClick={() => setTaskFilter('all')}><ClipboardList /></button><button onClick={() => setTaskFilter('working')}><Users /></button><button onClick={logout}><LogOut /></button>
+      <nav className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-4 gap-1 rounded-2xl border border-white/10 bg-slate-950/95 px-2 py-2 text-white shadow-2xl backdrop-blur-xl lg:hidden">
+        <MobileNavButton label="Profile" active={profileOpen} onClick={() => setProfileOpen(true)}><img src={userAvatar} className="h-5 w-5 rounded-full bg-white" /></MobileNavButton>
+        <MobileNavButton label="Tasks" active={taskFilter === 'all'} onClick={() => setTaskFilter('all')}><ClipboardList size={18} /></MobileNavButton>
+        <MobileNavButton label="Groups" active={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Users size={18} /></MobileNavButton>
+        <MobileNavButton label="Logout" onClick={logout}><LogOut size={18} /></MobileNavButton>
       </nav>
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/70 p-2 backdrop-blur-sm lg:hidden">
+          <div className="max-h-[82dvh] w-full overflow-y-auto rounded-2xl border border-white/10 bg-slate-950 p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-black">Groups</h2>
+                <p className="text-xs text-white/50">{activeTeam ? `${activeTeam.name} selected` : 'Create or join a group'}</p>
+              </div>
+              <button onClick={() => setMobileMenuOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+            </div>
+
+            <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
+              <MobileFilter label="All" count={tasks.length} active={taskFilter === 'all'} onClick={() => setTaskFilter('all')} />
+              <MobileFilter label="Pending" count={tasks.filter((task) => task.status === 'PENDING').length} active={taskFilter === 'pending'} onClick={() => setTaskFilter('pending')} />
+              <MobileFilter label="Working" count={workingCount} active={taskFilter === 'working'} onClick={() => setTaskFilter('working')} />
+              <MobileFilter label="Completed" count={completedCount} active={taskFilter === 'completed'} onClick={() => setTaskFilter('completed')} />
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="font-black uppercase text-white/55">Selected Group</span>
+                <span className="rounded-full bg-cyan-500/20 px-2 py-1 font-bold text-cyan-200">{myMembership?.role || 'MEMBER'}</span>
+              </div>
+              <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
+              <p className="mt-1 truncate text-white/55">Admin: {owner?.username || 'Unknown'}</p>
+              {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {teams.map((team) => {
+                const ownerName = team.members?.find((member) => member.role === 'OWNER')?.user?.username;
+                return <button key={team.id} onClick={async () => { await selectTeam(team.id); setMobileMenuOpen(false); }} className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${activeTeam?.id === team.id ? 'bg-white/15 ring-1 ring-cyan-300/40' : 'bg-white/5'}`}>
+                  <div className="flex items-center justify-between gap-2"><span className="truncate font-bold">{team.name}</span><span className="text-xs text-white/45">{team.tasks?.length || 0}</span></div>
+                  <p className="truncate text-xs text-white/45">Admin: {ownerName || 'Unknown'}</p>
+                </button>;
+              })}
+            </div>
+
+            <div className="mt-4 text-xs font-black uppercase text-white/45">Join or create group</div>
+            <form onSubmit={handleJoinTeam} className="mt-2 flex gap-2">
+              <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="Paste invite code" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
+              <button className="rounded-lg bg-cyan-500 px-3" title="Join group"><UserPlus size={16} /></button>
+            </form>
+            <form onSubmit={handleCreateTeam} className="mt-2 flex gap-2">
+              <input value={teamName} onChange={(event) => setTeamName(event.target.value)} placeholder="New group name" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
+              <button className="rounded-lg bg-white/10 px-3" title="Create group"><Plus size={16} /></button>
+            </form>
+          </div>
+        </div>
+      )}
       {profileOpen && (
         <div className="fixed inset-0 z-50 flex min-h-full items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:items-center">
           <form onSubmit={handleProfileSave} className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
@@ -162,6 +216,14 @@ export function DashboardLayout() {
 
 function SidebarItem({ icon, label, count, active, onClick }) {
   return <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}>{icon}<span className="flex-1">{label}</span>{count !== undefined && <span className="rounded bg-white/10 px-2 text-xs">{count}</span>}</button>;
+}
+
+function MobileNavButton({ children, label, active, onClick }) {
+  return <button onClick={onClick} className={`flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[11px] font-bold transition ${active ? 'bg-white/15 text-cyan-100' : 'text-white/80 hover:bg-white/10'}`}>{children}<span>{label}</span></button>;
+}
+
+function MobileFilter({ label, count, active, onClick }) {
+  return <button onClick={onClick} className={`flex items-center justify-between rounded-xl px-3 py-2 font-bold transition ${active ? 'bg-cyan-500 text-white' : 'bg-white/10 text-white/80'}`}><span>{label}</span><span className="rounded bg-black/20 px-2 text-xs">{count}</span></button>;
 }
 
 function maleAvatar(seed) {

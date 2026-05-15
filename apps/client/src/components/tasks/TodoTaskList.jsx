@@ -34,22 +34,22 @@ export function TodoTaskList() {
   }
 
   return (
-    <div className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="relative min-h-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/60 shadow-2xl">
+    <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="relative min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/60 shadow-2xl sm:rounded-[2rem]">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,165,233,.28),rgba(15,23,42,.35)),url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center" />
-        <div className="relative flex h-full min-h-0 flex-col p-4 pb-24 md:p-8 md:pb-8">
-          <div className="shrink-0 pb-5 text-white">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="relative flex h-full min-h-0 flex-col p-3 pb-24 sm:p-4 sm:pb-28 md:p-8 md:pb-8">
+          <div className="shrink-0 pb-3 text-white sm:pb-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h1 className="text-4xl font-black">My Day</h1>
+                <h1 className="text-3xl font-black leading-none sm:text-4xl">My Day</h1>
                 <p className="mt-1 text-sm text-white/75">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
               </div>
-              <div className="flex items-center gap-2 rounded-2xl bg-black/25 p-2 backdrop-blur-xl">
+              <div className="flex w-full items-center gap-2 rounded-2xl bg-black/25 p-2 backdrop-blur-xl sm:w-auto">
                 <Search size={18} />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" className="w-40 bg-transparent text-sm outline-none placeholder:text-white/60" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:w-40 sm:flex-none" />
               </div>
             </div>
-            <div className="mt-3 inline-flex rounded-xl bg-black/25 px-3 py-2 text-sm font-semibold backdrop-blur-xl">
+            <div className="mt-3 inline-flex max-w-full rounded-xl bg-black/25 px-3 py-2 text-xs font-semibold backdrop-blur-xl sm:text-sm">
               {activeTeam ? `${activeTeam.name} - ${labelForFilter(taskFilter)}` : 'Create or join a group'}
             </div>
           </div>
@@ -69,10 +69,10 @@ export function TodoTaskList() {
             {filteredTasks.length === 0 && <div className="rounded-xl bg-black/45 p-5 text-center text-sm font-semibold text-white/70 backdrop-blur-xl">No tasks found in this view.</div>}
           </div>
 
-          <form onSubmit={addTask} className="mt-4 flex shrink-0 items-center gap-3 rounded-xl bg-black/80 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
-            <Plus size={20} />
-            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add a task" className="flex-1 bg-transparent outline-none placeholder:text-white/60" />
-            <button className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-cyan-400">Add</button>
+          <form onSubmit={addTask} className="mt-3 flex shrink-0 items-center gap-2 rounded-xl bg-black/80 px-3 py-2 text-white shadow-2xl backdrop-blur-xl sm:mt-4 sm:gap-3 sm:px-4 sm:py-3">
+            <Plus size={18} />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Add a task" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:text-base" />
+            <button className="rounded-lg bg-cyan-500 px-3 py-2 text-sm font-bold text-white transition hover:bg-cyan-400 sm:px-4">Add</button>
           </form>
         </div>
       </section>
@@ -89,15 +89,15 @@ function TaskRow({ task, currentUserId, selected, completed, onSelect, onStart, 
   const canCancel = working && task.startedBy === currentUserId;
   const canComplete = !completed && (!working || task.startedBy === currentUserId);
   return (
-    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-3 text-white backdrop-blur-xl transition ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
-      <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
+    <motion.div layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: completed ? 0.62 : 1, y: 0 }} exit={{ opacity: 0, x: -20 }} onClick={onSelect} className={`group flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-white backdrop-blur-xl transition sm:gap-3 sm:py-3 ${selected ? 'border-cyan-300 bg-cyan-950/70' : 'border-white/5 bg-zinc-900/85 hover:bg-zinc-800/90'}`}>
+      <button disabled={!canComplete} onClick={(event) => { event.stopPropagation(); onComplete?.(); }} className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${completed ? 'cursor-default border-slate-400 bg-slate-400 text-slate-950' : canComplete ? 'border-white/70 hover:border-cyan-300' : 'cursor-not-allowed border-white/25'}`}>{completed ? <Check size={13} /> : <Circle size={14} className="opacity-0" />}</button>
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm font-medium ${completed ? 'line-through text-white/55' : ''}`}>{task.title}</p>
         <p className="mt-0.5 text-xs text-white/50">{task.status === 'IN_PROGRESS' && task.starter ? `${task.starter.username} is working` : task.description || 'Tasks'}</p>
       </div>
-      {canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
-      {!working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
-      <Star size={18} className="text-white/55" />
+      {canCancel && <button onClick={(event) => { event.stopPropagation(); onCancel?.(); }} className="shrink-0 rounded-lg bg-rose-500/20 p-2 opacity-100 transition hover:bg-rose-500 sm:opacity-0 sm:group-hover:opacity-100" title="Cancel working"><X size={14} /></button>}
+      {!working && task.status !== 'COMPLETED' && <button onClick={(event) => { event.stopPropagation(); onStart?.(); }} className="shrink-0 rounded-lg bg-white/10 p-2 opacity-100 transition hover:bg-cyan-500 sm:opacity-0 sm:group-hover:opacity-100" title="Start working"><Play size={14} /></button>}
+      <Star size={18} className="shrink-0 text-white/55" />
     </motion.div>
   );
 }
