@@ -38,6 +38,11 @@ export async function me(req, res) {
   res.json({ user: sanitizeUser(req.user) });
 }
 
+export async function updateProfile(req, res) {
+  const user = await prisma.user.update({ where: { id: req.user.id }, data: { username: req.body.username, avatar: req.body.avatar } });
+  res.json({ user: sanitizeUser(user) });
+}
+
 export async function logout(req, res) {
   await prisma.user.update({ where: { id: req.user.id }, data: { refreshToken: null } });
   res.json({ message: 'Logged out' });
