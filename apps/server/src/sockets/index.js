@@ -20,7 +20,9 @@ export function registerSockets(io) {
   });
 
   io.on('connection', (socket) => {
-    onlineUsers.set(socket.user.id, socket.id);
+    const userSockets = onlineUsers.get(socket.user.id) || new Set();
+    userSockets.add(socket.id);
+    onlineUsers.set(socket.user.id, userSockets);
     socket.join(`user:${socket.user.id}`);
     io.emit('user_online', { userId: socket.user.id, username: socket.user.username });
 
@@ -33,8 +35,12 @@ export function registerSockets(io) {
     socket.on('typing_stop', ({ teamId, taskId }) => socket.to(`team:${teamId}`).emit('typing_stop', { taskId, userId: socket.user.id }));
 
     socket.on('disconnect', () => {
-      onlineUsers.delete(socket.user.id);
-      io.emit('user_offline', { userId: socket.user.id });
+      const sockets = onlineUsers.get(socket.user.id);
+      sockets?.delete(socket.id);
+      if (!sockets?.size) {
+        onlineUsers.delete(socket.user.id);
+        io.emit('user_offline', { userId: socket.user.id });
+      }
     });
   });
 }

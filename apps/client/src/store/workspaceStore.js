@@ -11,6 +11,7 @@ export const useWorkspaceStore = create((set, get) => ({
   notifications: [],
   analytics: null,
   onlineUsers: [],
+  realtimeCleanup: null,
   setTaskFilter(taskFilter) {
     set({ taskFilter });
   },
@@ -29,6 +30,7 @@ export const useWorkspaceStore = create((set, get) => ({
     if (!teamId) return;
     const { data } = await api.get(`/tasks/team/${teamId}`);
     set({ tasks: data });
+    set({ teams: get().teams.map((team) => team.id === teamId ? { ...team, tasks: data } : team) });
   },
   async createTask(payload) {
     const { data } = await api.post('/tasks', payload);
@@ -83,12 +85,21 @@ export const useWorkspaceStore = create((set, get) => ({
   wireRealtime() {
     const socket = getSocket();
     if (!socket) return;
-    const joinActiveTeam = () => {
+    get().realtimeCleanup?.();
+    const syncActiveTeam = async () => {
       const teamId = get().activeTeam?.id;
-      if (teamId) socket.emit('team_join', teamId);
+      if (!teamId) return;
+      socket.emit('team_join', teamId);
+      try {
+        await Promise.all([get().loadTasks(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
+      } catch {
+        // Realtime recovery should never break the visible app if one refresh request fails.
+      }
     };
-    socket.off('connect').on('connect', joinActiveTeam);
-    joinActiveTeam();
+    socket.off('connect').on('connect', syncActiveTeam);
+    socket.io.off('reconnect').on('reconnect', syncActiveTeam);
+    socket.io.off('reconnect_error').on('reconnect_error', () => {});
+    syncActiveTeam();
     socket.off('task_created').on('task_created', get().upsertTask);
     socket.off('task_updated').on('task_updated', get().upsertTask);
     socket.off('task_started').on('task_started', get().upsertTask);
@@ -97,5 +108,18 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('user_online').on('user_online', ({ userId }) => set({ onlineUsers: Array.from(new Set([...get().onlineUsers, userId])) }));
     socket.off('user_offline').on('user_offline', ({ userId }) => set({ onlineUsers: get().onlineUsers.filter((id) => id !== userId) }));
     socket.off('comment_created').on('comment_created', ({ taskId, comment }) => set({ tasks: get().tasks.map((task) => task.id === taskId ? { ...task, comments: [...(task.comments || []), comment] } : task) }));
+    const handleVisibilityChange = () => {
+      if (!document.hidden) syncActiveTeam();
+    };
+    window.addEventListener('focus', syncActiveTeam);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    set({
+      realtimeCleanup: () => {
+        window.removeEventListener('focus', syncActiveTeam);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        socket.off('connect', syncActiveTeam);
+        socket.io.off('reconnect', syncActiveTeam);
+      },
+    });
   },
 }));
