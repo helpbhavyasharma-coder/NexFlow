@@ -188,24 +188,27 @@ export function DashboardLayout() {
         <MobileNavButton label="Profile" active={profileOpen} onClick={() => setProfileOpen(true)}><img src={userAvatar} className="h-5 w-5 rounded-full bg-white" /></MobileNavButton>
       </nav>
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/70 p-2 backdrop-blur-sm lg:hidden">
-          <div className="max-h-[82dvh] w-full overflow-y-auto rounded-2xl border border-white/10 bg-slate-950 p-4 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:p-3 lg:hidden">
+          <div className="flex max-h-[88dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-slate-950 shadow-2xl sm:max-h-[82dvh] sm:rounded-2xl">
+            <div className="shrink-0 border-b border-white/10 bg-slate-950/95 p-4">
+              <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black">Groups</h2>
                 <p className="text-xs text-white/50">{activeTeam ? `${activeTeam.name} selected` : 'Create or join a group'}</p>
               </div>
               <button onClick={() => setMobileMenuOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold sm:text-sm">Close</button>
+              </div>
             </div>
 
-            <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
-              <MobileFilter label="All" count={tasks.length} active={taskFilter === 'all'} onClick={() => setTaskFilter('all')} />
-              <MobileFilter label="Pending" count={tasks.filter((task) => task.status === 'PENDING').length} active={taskFilter === 'pending'} onClick={() => setTaskFilter('pending')} />
-              <MobileFilter label="Working" count={workingCount} active={taskFilter === 'working'} onClick={() => setTaskFilter('working')} />
-              <MobileFilter label="Completed" count={completedCount} active={taskFilter === 'completed'} onClick={() => setTaskFilter('completed')} />
-            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="mb-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <MobileFilter label="All" count={tasks.length} active={taskFilter === 'all'} onClick={() => setTaskFilter('all')} />
+                <MobileFilter label="Pending" count={tasks.filter((task) => task.status === 'PENDING').length} active={taskFilter === 'pending'} onClick={() => setTaskFilter('pending')} />
+                <MobileFilter label="Working" count={workingCount} active={taskFilter === 'working'} onClick={() => setTaskFilter('working')} />
+                <MobileFilter label="Completed" count={completedCount} active={taskFilter === 'completed'} onClick={() => setTaskFilter('completed')} />
+              </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-xs">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <span className="font-black uppercase text-white/55">Selected Group</span>
                 <span className="rounded-full bg-cyan-500/20 px-2 py-1 font-bold text-cyan-200">{myMembership?.role || 'MEMBER'}</span>
@@ -213,31 +216,36 @@ export function DashboardLayout() {
               <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
               <p className="mt-1 truncate text-white/55">Admin: {owner?.username || 'Unknown'}</p>
               {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
-              <div className="mt-2 grid grid-cols-2 gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <button onClick={() => { openTeamHub('chat'); setMobileMenuOpen(false); }} className="relative flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Chat {unreadChatCount > 0 && <span className="absolute right-2 top-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px]">{unreadChatCount}</span>}</button>
                 <button onClick={() => { openTeamHub('overview'); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 font-black text-white"><Info size={15} /> Overview</button>
               </div>
             </div>
 
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {teams.map((team) => {
                 const ownerName = team.members?.find((member) => member.role === 'OWNER')?.user?.username;
-                return <button key={team.id} onClick={async () => { await selectTeam(team.id); setMobileMenuOpen(false); }} className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${activeTeam?.id === team.id ? 'bg-white/15 ring-1 ring-cyan-300/40' : 'bg-white/5'}`}>
+                return <button key={team.id} onClick={async () => { await selectTeam(team.id); setMobileMenuOpen(false); }} className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition ${activeTeam?.id === team.id ? 'border-cyan-300/70 bg-white/15' : 'border-white/10 bg-white/5'}`}>
                   <div className="flex items-center justify-between gap-2"><span className="truncate font-bold">{team.name}</span><span className="text-xs text-white/45">{team.tasks?.length || 0}</span></div>
                   <p className="truncate text-xs text-white/45">Admin: {ownerName || 'Unknown'}</p>
                 </button>;
               })}
             </div>
+            </div>
 
-            <div className="mt-4 text-xs font-black uppercase text-white/45">Join or create group</div>
-            <form onSubmit={handleJoinTeam} className="mt-2 flex gap-2">
-              <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="Paste invite code" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
-              <button className="rounded-lg bg-cyan-500 px-3" title="Join group"><UserPlus size={16} /></button>
-            </form>
-            <form onSubmit={handleCreateTeam} className="mt-2 flex gap-2">
-              <input value={teamName} onChange={(event) => setTeamName(event.target.value)} placeholder="New group name" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
-              <button className="rounded-lg bg-white/10 px-3" title="Create group"><Plus size={16} /></button>
-            </form>
+            <div className="shrink-0 border-t border-white/10 bg-slate-950/95 p-4">
+              <div className="mb-2 text-xs font-black uppercase text-white/45">Join or create group</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <form onSubmit={handleJoinTeam} className="flex gap-2">
+                  <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} placeholder="Paste invite code" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
+                  <button className="rounded-lg bg-cyan-500 px-3" title="Join group"><UserPlus size={16} /></button>
+                </form>
+                <form onSubmit={handleCreateTeam} className="flex gap-2">
+                  <input value={teamName} onChange={(event) => setTeamName(event.target.value)} placeholder="New group name" className="min-w-0 flex-1 rounded-lg bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/35" />
+                  <button className="rounded-lg bg-white/10 px-3" title="Create group"><Plus size={16} /></button>
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       )}
