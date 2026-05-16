@@ -1,5 +1,5 @@
 import { CheckCircle2, ClipboardList, Copy, Crown, Info, LogOut, MessageCircle, Plus, Search, Shield, Sun, Trash2, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ThemeToggle } from '../components/common/ThemeToggle.jsx';
@@ -17,6 +17,7 @@ export function DashboardLayout() {
   const [teamHubOpen, setTeamHubOpen] = useState(false);
   const [teamHubView, setTeamHubView] = useState('chat');
   const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
+  const chatEndRef = useRef(null);
   const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
 
   useEffect(() => {
@@ -26,6 +27,14 @@ export function DashboardLayout() {
     }
     markChatClosed();
   }, [teamHubOpen, activeTeam?.id]);
+
+  useEffect(() => {
+    if (!teamHubOpen || teamHubView !== 'chat') return;
+    const frame = window.requestAnimationFrame(() => {
+      chatEndRef.current?.scrollIntoView({ block: 'end' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [teamHubOpen, teamHubView, activeTeam?.id, chatMessages.length]);
 
   async function handleCreateTeam(event) {
     event.preventDefault();
@@ -233,10 +242,11 @@ export function DashboardLayout() {
         </div>
       )}
       {teamHubOpen && activeTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm">
-          <section className="grid max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl lg:grid-cols-[1fr_380px]">
-            <div className={`${teamHubView === 'overview' ? 'hidden lg:flex' : 'flex'} min-h-[min(640px,calc(100dvh-1.5rem))] flex-col overflow-hidden border-b border-white/10 p-4 lg:border-b-0 lg:border-r`}>
-              <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:p-3">
+          <section className="grid h-[calc(100dvh-1rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl sm:h-[calc(100dvh-1.5rem)] lg:grid-cols-[1fr_380px]">
+            <div className={`${teamHubView === 'overview' ? 'hidden lg:flex' : 'flex'} min-h-0 flex-col overflow-hidden border-b border-white/10 lg:border-b-0 lg:border-r`}>
+              <div className="shrink-0 border-b border-white/10 bg-slate-950/95 p-4">
+                <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-black">Team Chat</h2>
                   <p className="text-sm text-white/50">{activeTeam.name} · {activeTeam.members?.length || 0} members · {onlineUsers.length} online</p>
@@ -245,28 +255,34 @@ export function DashboardLayout() {
                   <button onClick={() => setTeamHubView('overview')} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold lg:hidden">Overview</button>
                   <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
                 </div>
+                </div>
               </div>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain scroll-smooth px-3 py-4 sm:px-4">
+                <div className="flex min-h-full flex-col justify-end gap-3">
                 {chatMessages.length ? chatMessages.map((message) => (
                   <div key={message.id} className={`flex gap-2 ${message.userId === user?.id ? 'justify-end' : 'justify-start'}`}>
-                    {message.userId !== user?.id && <img src={lightAvatar(message.user?.avatar) || maleAvatar(message.user?.username || 'user')} className="h-8 w-8 rounded-full bg-white" />}
-                    <div className={`group relative max-w-[82%] rounded-2xl px-3 py-2 ${message.userId === user?.id ? 'bg-cyan-500 text-white' : 'bg-white/10'}`}>
+                    {message.userId !== user?.id && <img src={lightAvatar(message.user?.avatar) || maleAvatar(message.user?.username || 'user')} className="h-8 w-8 shrink-0 rounded-full bg-white" />}
+                    <div className={`group relative max-w-[82%] rounded-2xl px-3 py-2 shadow-lg ${message.userId === user?.id ? 'bg-cyan-500 text-white' : 'bg-white/10'}`}>
                       <div className="mb-1 flex items-center justify-between gap-3 text-[11px] font-black uppercase opacity-70">
                         <span>{message.user?.username || 'Member'}</span>
                         {message.userId === user?.id && <button onClick={() => handleDeleteChatMessage(message)} className="rounded-md p-1 opacity-80 transition hover:bg-black/20 sm:opacity-0 sm:group-hover:opacity-100" title="Delete message"><Trash2 size={12} /></button>}
                       </div>
-                      <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                      <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.content}</p>
                     </div>
                   </div>
-                )) : <div className="grid h-full place-items-center rounded-2xl bg-white/5 p-6 text-center text-sm text-white/55">No messages yet.</div>}
+                )) : <div className="grid h-full min-h-[18rem] place-items-center rounded-2xl bg-white/5 p-6 text-center text-sm text-white/55">No messages yet.</div>}
+                  <div ref={chatEndRef} />
+                </div>
               </div>
-              <form onSubmit={handleSendChat} className="mt-4 flex gap-2 rounded-2xl bg-white/10 p-2">
-                <input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Message your team" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-white/45" />
-                <button className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black">Send</button>
+              <form onSubmit={handleSendChat} className="shrink-0 border-t border-white/10 bg-slate-950/95 p-3">
+                <div className="flex gap-2 rounded-2xl bg-white/10 p-2">
+                  <input value={chatText} onChange={(event) => setChatText(event.target.value)} placeholder="Message your team" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-white/45" />
+                  <button className="rounded-xl bg-cyan-500 px-4 py-2 text-sm font-black">Send</button>
+                </div>
               </form>
             </div>
 
-            <aside className={`${teamHubView === 'overview' ? 'block' : 'hidden lg:block'} max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4`}>
+            <aside className={`${teamHubView === 'overview' ? 'block' : 'hidden lg:block'} h-full overflow-y-auto p-4`}>
               <div className="mb-3 flex items-center justify-between gap-2 lg:hidden">
                 <button onClick={() => setTeamHubView('chat')} className="rounded-xl bg-cyan-500 px-3 py-2 text-sm font-black text-white"><MessageCircle size={14} className="mr-1 inline" /> Chat</button>
                 <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
