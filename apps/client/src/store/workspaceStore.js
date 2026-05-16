@@ -10,6 +10,26 @@ function currentUserId() {
   return JSON.parse(localStorage.getItem('nexflow-auth') || '{}')?.state?.user?.id;
 }
 
+function lastActiveTeamStorageKey() {
+  const userId = currentUserId();
+  return userId ? `nexflow-last-team:${userId}` : null;
+}
+
+function getLastActiveTeamId() {
+  const key = lastActiveTeamStorageKey();
+  return key ? localStorage.getItem(key) : null;
+}
+
+function saveLastActiveTeamId(teamId) {
+  const key = lastActiveTeamStorageKey();
+  if (key && teamId) localStorage.setItem(key, teamId);
+}
+
+function clearLastActiveTeamId() {
+  const key = lastActiveTeamStorageKey();
+  if (key) localStorage.removeItem(key);
+}
+
 export const useWorkspaceStore = create((set, get) => ({
   teams: [],
   activeTeam: null,
@@ -42,11 +62,21 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   async loadTeams() {
     const { data } = await api.get('/teams');
-    set({ teams: data, activeTeam: get().activeTeam || data[0] || null });
-    if (data[0]) await get().selectTeam(get().activeTeam?.id || data[0].id);
+    const lastTeamId = getLastActiveTeamId();
+    const activeTeamId = get().activeTeam?.id;
+    const selectedTeam = data.find((team) => team.id === lastTeamId) || data.find((team) => team.id === activeTeamId) || data[0] || null;
+    set({ teams: data, activeTeam: selectedTeam });
+    if (selectedTeam) {
+      await get().selectTeam(selectedTeam.id);
+    } else {
+      clearLastActiveTeamId();
+      set({ tasks: [], bundles: [], chatMessages: [], analytics: null, activeBundleId: 'all' });
+    }
   },
   async selectTeam(teamId) {
-    const activeTeam = get().teams.find((team) => team.id === teamId) || get().activeTeam;
+    const activeTeam = get().teams.find((team) => team.id === teamId);
+    if (!activeTeam) return;
+    saveLastActiveTeamId(teamId);
     set({ activeTeam, activeBundleId: 'all' });
     getSocket()?.emit('team_join', teamId);
     await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadChatMessages(teamId), get().loadAnalytics(teamId)]);
@@ -160,7 +190,11 @@ export const useWorkspaceStore = create((set, get) => ({
     await api.post(`/teams/${teamId}/leave`);
     const remainingTeams = get().teams.filter((team) => team.id !== teamId);
     set({ teams: remainingTeams, activeTeam: remainingTeams[0] || null, tasks: [], bundles: [], chatMessages: [] });
-    if (remainingTeams[0]) await get().selectTeam(remainingTeams[0].id);
+    if (remainingTeams[0]) {
+      await get().selectTeam(remainingTeams[0].id);
+    } else {
+      clearLastActiveTeamId();
+    }
   },
   upsertTeam(team) {
     if (!team?.id) return;
@@ -196,7 +230,11 @@ export const useWorkspaceStore = create((set, get) => ({
       chatMessages: isActiveTeam ? [] : get().chatMessages,
       activeBundleId: isActiveTeam ? 'all' : get().activeBundleId,
     });
-    if (isActiveTeam && remainingTeams[0]) get().selectTeam(remainingTeams[0].id);
+    if (isActiveTeam && remainingTeams[0]) {
+      get().selectTeam(remainingTeams[0].id);
+    } else if (isActiveTeam) {
+      clearLastActiveTeamId();
+    }
   },
   upsertChatMessage(message) {
     if (!message?.id || message.teamId !== get().activeTeam?.id) return;
