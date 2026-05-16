@@ -1,5 +1,5 @@
 import { CheckCircle2, ClipboardList, Copy, Crown, LogOut, MessageCircle, Plus, Search, Shield, Sun, Trash2, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ThemeToggle } from '../components/common/ThemeToggle.jsx';
@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../store/workspaceStore.js';
 
 export function DashboardLayout() {
   const { user, logout, updateProfile } = useAuthStore();
-  const { teams, activeTeam, tasks, chatMessages, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam, sendChatMessage, deleteChatMessage, updateMemberRole, removeMember, leaveTeam } = useWorkspaceStore();
+  const { teams, activeTeam, tasks, chatMessages, unreadChatByTeam, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam, sendChatMessage, deleteChatMessage, updateMemberRole, removeMember, leaveTeam, deleteTeam, markChatOpen, markChatClosed } = useWorkspaceStore();
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [chatText, setChatText] = useState('');
@@ -17,6 +17,14 @@ export function DashboardLayout() {
   const [teamHubOpen, setTeamHubOpen] = useState(false);
   const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
   const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
+
+  useEffect(() => {
+    if (teamHubOpen && activeTeam?.id) {
+      markChatOpen(activeTeam.id);
+      return () => markChatClosed();
+    }
+    markChatClosed();
+  }, [teamHubOpen, activeTeam?.id]);
 
   async function handleCreateTeam(event) {
     event.preventDefault();
@@ -66,12 +74,29 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }
 
+  function openTeamHub() {
+    if (!activeTeam) {
+      toast.error('Create or join a group first');
+      return;
+    }
+    setTeamHubOpen(true);
+  }
+
+  async function handleDeleteTeam() {
+    if (!activeTeam) return;
+    if (!window.confirm(`Delete "${activeTeam.name}" permanently? All tasks, bundles, and chat will be removed.`)) return;
+    await deleteTeam(activeTeam.id);
+    setTeamHubOpen(false);
+    setMobileMenuOpen(false);
+  }
+
   const activeCount = tasks.filter((task) => task.status !== 'COMPLETED').length;
   const workingCount = tasks.filter((task) => task.status === 'IN_PROGRESS').length;
   const completedCount = tasks.filter((task) => task.status === 'COMPLETED').length;
   const myMembership = activeTeam?.members?.find((member) => member.userId === user?.id);
   const owner = activeTeam?.members?.find((member) => member.role === 'OWNER')?.user;
   const canManageMembers = myMembership?.role === 'OWNER';
+  const unreadChatCount = activeTeam ? unreadChatByTeam[activeTeam.id] || 0 : 0;
 
   return (
     <div className="h-[100dvh] overflow-hidden bg-slate-950 text-white">
@@ -108,7 +133,7 @@ export function DashboardLayout() {
             <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
             <p className="mt-1 truncate text-white/55">Group admin: {owner?.username || 'Unknown'}</p>
             {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
-            <button onClick={() => setTeamHubOpen(true)} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub</button>
+            <button onClick={openTeamHub} className="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub {unreadChatCount > 0 && <span className="absolute right-3 rounded-full bg-rose-500 px-2 py-0.5 text-[10px]">{unreadChatCount}</span>}</button>
           </div>
 
           <div className="mt-4 pr-1">
@@ -146,6 +171,10 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      <button onClick={openTeamHub} className="fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-white shadow-2xl transition hover:bg-cyan-400 lg:bottom-5" title="Team chat">
+        <MessageCircle size={22} />
+        {unreadChatCount > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-xs font-black">{unreadChatCount}</span>}
+      </button>
       <nav className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-950/95 px-2 py-2 text-white shadow-2xl backdrop-blur-xl lg:hidden">
         <MobileNavButton label="Tasks" active={taskFilter === 'all'} onClick={() => setTaskFilter('all')}><ClipboardList size={18} /></MobileNavButton>
         <MobileNavButton label="Groups" active={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Users size={18} /></MobileNavButton>
@@ -177,7 +206,7 @@ export function DashboardLayout() {
               <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
               <p className="mt-1 truncate text-white/55">Admin: {owner?.username || 'Unknown'}</p>
               {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
-              <button onClick={() => { setTeamHubOpen(true); setMobileMenuOpen(false); }} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub</button>
+              <button onClick={() => { openTeamHub(); setMobileMenuOpen(false); }} className="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub {unreadChatCount > 0 && <span className="absolute right-3 rounded-full bg-rose-500 px-2 py-0.5 text-[10px]">{unreadChatCount}</span>}</button>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -242,6 +271,7 @@ export function DashboardLayout() {
                 <p className="text-sm font-bold">{activeTeam.name}</p>
                 <p className="text-xs text-white/50">Owner: {owner?.username || 'Unknown'}</p>
                 {myMembership?.role !== 'OWNER' && <button onClick={handleLeaveTeam} className="mt-3 w-full rounded-xl bg-rose-500/20 px-3 py-2 text-sm font-black text-rose-100 hover:bg-rose-500">Leave Group</button>}
+                {myMembership?.role === 'OWNER' && <button onClick={handleDeleteTeam} className="mt-3 w-full rounded-xl bg-rose-500/20 px-3 py-2 text-sm font-black text-rose-100 hover:bg-rose-500"><Trash2 size={14} className="mr-1 inline" /> Delete Group</button>}
               </div>
 
               <div className="space-y-2">

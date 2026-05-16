@@ -6,6 +6,10 @@ import { connectStoredSocket, getSocket } from '../services/socket.js';
 let sectionSyncTimer = null;
 let pendingSections = new Set();
 
+function currentUserId() {
+  return JSON.parse(localStorage.getItem('nexflow-auth') || '{}')?.state?.user?.id;
+}
+
 export const useWorkspaceStore = create((set, get) => ({
   teams: [],
   activeTeam: null,
@@ -17,6 +21,8 @@ export const useWorkspaceStore = create((set, get) => ({
   notifications: [],
   analytics: null,
   onlineUsers: [],
+  unreadChatByTeam: {},
+  openChatTeamId: null,
   realtimeCleanup: null,
   realtimeStatus: 'offline',
   setTaskFilter(taskFilter) {
@@ -24,6 +30,15 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   setActiveBundleId(activeBundleId) {
     set({ activeBundleId });
+  },
+  markChatOpen(teamId) {
+    set({
+      openChatTeamId: teamId || null,
+      unreadChatByTeam: teamId ? { ...get().unreadChatByTeam, [teamId]: 0 } : get().unreadChatByTeam,
+    });
+  },
+  markChatClosed() {
+    set({ openChatTeamId: null });
   },
   async loadTeams() {
     const { data } = await api.get('/teams');
@@ -135,6 +150,11 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.delete(`/teams/${teamId}/members/${memberId}`);
     get().upsertTeam(data);
   },
+  async deleteTeam(teamId = get().activeTeam?.id) {
+    if (!teamId) return;
+    await api.delete(`/teams/${teamId}`);
+    get().removeTeam(teamId);
+  },
   async leaveTeam(teamId = get().activeTeam?.id) {
     if (!teamId) return;
     await api.post(`/teams/${teamId}/leave`);
@@ -164,11 +184,30 @@ export const useWorkspaceStore = create((set, get) => ({
       teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: (team.tasks || []).filter((item) => item.id !== task.id) } : team),
     });
   },
+  removeTeam(teamId) {
+    if (!teamId) return;
+    const remainingTeams = get().teams.filter((team) => team.id !== teamId);
+    const isActiveTeam = get().activeTeam?.id === teamId;
+    set({
+      teams: remainingTeams,
+      activeTeam: isActiveTeam ? remainingTeams[0] || null : get().activeTeam,
+      tasks: isActiveTeam ? [] : get().tasks,
+      bundles: isActiveTeam ? [] : get().bundles,
+      chatMessages: isActiveTeam ? [] : get().chatMessages,
+      activeBundleId: isActiveTeam ? 'all' : get().activeBundleId,
+    });
+    if (isActiveTeam && remainingTeams[0]) get().selectTeam(remainingTeams[0].id);
+  },
   upsertChatMessage(message) {
     if (!message?.id || message.teamId !== get().activeTeam?.id) return;
+    const exists = get().chatMessages.some((item) => item.id === message.id);
     const messages = [...get().chatMessages.filter((item) => item.id !== message.id), message]
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    set({ chatMessages: messages });
+    const shouldCountUnread = !exists && message.userId !== currentUserId() && get().openChatTeamId !== message.teamId;
+    set({
+      chatMessages: messages,
+      unreadChatByTeam: shouldCountUnread ? { ...get().unreadChatByTeam, [message.teamId]: (get().unreadChatByTeam[message.teamId] || 0) + 1 } : get().unreadChatByTeam,
+    });
   },
   removeChatMessage(message) {
     if (!message?.id) return;
@@ -227,12 +266,10 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('workspace_changed').on('workspace_changed', handleWorkspaceChange);
     socket.off('team_updated').on('team_updated', get().upsertTeam);
     socket.off('team_removed').on('team_removed', ({ teamId }) => {
-      const remainingTeams = get().teams.filter((team) => team.id !== teamId);
-      set({ teams: remainingTeams, activeTeam: get().activeTeam?.id === teamId ? remainingTeams[0] || null : get().activeTeam });
+      get().removeTeam(teamId);
     });
     socket.off('team_deleted').on('team_deleted', ({ teamId }) => {
-      const remainingTeams = get().teams.filter((team) => team.id !== teamId);
-      set({ teams: remainingTeams, activeTeam: get().activeTeam?.id === teamId ? remainingTeams[0] || null : get().activeTeam });
+      get().removeTeam(teamId);
     });
     socket.off('bundle_created').on('bundle_created', (bundle) => {
       if (bundle.teamId !== get().activeTeam?.id) return;

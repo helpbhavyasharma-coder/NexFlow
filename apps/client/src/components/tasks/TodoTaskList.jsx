@@ -13,6 +13,7 @@ export function TodoTaskList() {
   const [search, setSearch] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [showCompleted, setShowCompleted] = useState(true);
+  const [closedBundles, setClosedBundles] = useState({});
   const today = new Date();
 
   const selectedTask = useMemo(() => tasks.find((task) => task.id === selectedTaskId) || null, [selectedTaskId, tasks]);
@@ -32,6 +33,13 @@ export function TodoTaskList() {
   const myRole = activeTeam?.members?.find((member) => member.userId === user?.id)?.role || 'VIEWER';
   const canWorkTasks = ['MEMBER', 'ADMIN', 'OWNER'].includes(myRole);
   const canDeleteTasks = ['ADMIN', 'OWNER'].includes(myRole);
+  const activeBundleSections = useMemo(() => {
+    const noBundleTasks = activeTasks.filter((task) => !task.bundleId);
+    return [
+      { id: 'none', name: 'No bundle', tasks: noBundleTasks },
+      ...bundles.map((bundle) => ({ id: bundle.id, name: bundle.name, tasks: activeTasks.filter((task) => task.bundleId === bundle.id) })),
+    ].filter((section) => section.tasks.length || activeBundleId === 'all');
+  }, [activeTasks, bundles, activeBundleId]);
 
   useEffect(() => {
     setTaskBundleId(activeBundleId === 'all' ? 'none' : activeBundleId);
@@ -49,6 +57,10 @@ export function TodoTaskList() {
     if (!bundleName.trim() || !activeTeam) return;
     await createBundle({ teamId: activeTeam.id, name: bundleName.trim() });
     setBundleName('');
+  }
+
+  function toggleBundleSection(bundleId) {
+    setClosedBundles((current) => ({ ...current, [bundleId]: !current[bundleId] }));
   }
 
   return (
@@ -86,9 +98,32 @@ export function TodoTaskList() {
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-            <AnimatePresence>
-              {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
-            </AnimatePresence>
+            {activeBundleId === 'all' ? (
+              <div className="space-y-2">
+                {activeBundleSections.map((section) => (
+                  <div key={section.id} className="overflow-hidden rounded-lg bg-black/25 backdrop-blur-xl">
+                    <button onClick={() => toggleBundleSection(section.id)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-black text-white transition hover:bg-white/10">
+                      <ChevronDown size={15} className={closedBundles[section.id] ? '-rotate-90' : ''} />
+                      <FolderKanban size={14} className="text-cyan-200" />
+                      <span className="min-w-0 flex-1 truncate">{section.name}</span>
+                      <span className="rounded bg-white/15 px-2 py-0.5">{section.tasks.length}</span>
+                    </button>
+                    {!closedBundles[section.id] && (
+                      <div className="space-y-2 p-2 pt-0">
+                        <AnimatePresence>
+                          {section.tasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
+                          {!section.tasks.length && <div className="rounded-lg bg-black/25 px-3 py-2 text-xs font-semibold text-white/45">No active tasks in this bundle.</div>}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <AnimatePresence>
+                {activeTasks.map((task) => <TaskRow key={task.id} task={task} currentUserId={user?.id} canWorkTasks={canWorkTasks} canDeleteTasks={canDeleteTasks} selected={selectedTask?.id === task.id} onSelect={() => setSelectedTaskId(task.id)} onStart={() => startTask(task.id)} onComplete={() => completeTask(task.id)} onReopen={() => reopenTask(task.id)} onCancel={() => cancelTask(task.id)} onDelete={() => handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId)} />)}
+              </AnimatePresence>
+            )}
 
             {completedTasks.length > 0 && (
               <div className="pt-2">
