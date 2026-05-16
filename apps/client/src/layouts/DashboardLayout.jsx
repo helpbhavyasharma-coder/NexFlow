@@ -170,13 +170,9 @@ export function DashboardLayout() {
           </div>
         </aside>
         <main className="h-full min-w-0 flex-1 overflow-hidden p-2 sm:p-3 md:p-4">
-          <Outlet context={{ openProfile: () => setProfileOpen(true), userAvatar }} />
+          <Outlet context={{ openProfile: () => setProfileOpen(true), openTeamHub: () => openTeamHub('chat'), unreadChatCount, userAvatar }} />
         </main>
       </div>
-      <button onClick={() => openTeamHub('chat')} className="fixed bottom-36 right-4 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-white shadow-2xl transition hover:bg-cyan-400 lg:bottom-5" title="Team chat">
-        <MessageCircle size={22} />
-        {unreadChatCount > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-xs font-black">{unreadChatCount}</span>}
-      </button>
       <nav className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-950/95 px-2 py-2 text-white shadow-2xl backdrop-blur-xl lg:hidden">
         <MobileNavButton label="Tasks" active={taskFilter === 'all'} onClick={() => setTaskFilter('all')}><ClipboardList size={18} /></MobileNavButton>
         <MobileNavButton label="Groups" active={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Users size={18} /></MobileNavButton>

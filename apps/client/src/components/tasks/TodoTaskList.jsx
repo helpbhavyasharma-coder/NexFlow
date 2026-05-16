@@ -7,7 +7,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore.js';
 
 export function TodoTaskList() {
   const user = useAuthStore((state) => state.user);
-  const { openProfile, userAvatar } = useOutletContext() || {};
+  const { openProfile, openTeamHub, unreadChatCount = 0, userAvatar } = useOutletContext() || {};
   const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, reopenTask, cancelTask, deleteTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
   const [bundleName, setBundleName] = useState('');
@@ -79,9 +79,15 @@ export function TodoTaskList() {
                 <p className="mt-1 text-xs font-semibold text-white/75">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 </div>
               </div>
-              <div className="flex w-full items-center gap-2 rounded-xl bg-black/25 px-3 py-2 backdrop-blur-xl sm:w-auto md:py-1.5">
-                <Search size={16} />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 sm:w-40 sm:flex-none md:text-xs" />
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-black/25 px-3 py-2 backdrop-blur-xl sm:w-56 sm:flex-none md:py-1.5">
+                  <Search size={16} className="shrink-0" />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tasks" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/60 md:text-xs" />
+                </div>
+                <button onClick={openTeamHub} className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cyan-500 text-white shadow-xl transition hover:bg-cyan-400 md:h-11 md:w-11" title="Team chat">
+                  <MessageCircle size={20} />
+                  {unreadChatCount > 0 && <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-black">{unreadChatCount}</span>}
+                </button>
               </div>
             </div>
             <div className="mt-2 inline-flex max-w-full rounded-lg bg-black/25 px-3 py-1 text-[11px] font-semibold backdrop-blur-xl">
