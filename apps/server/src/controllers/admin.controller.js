@@ -3,9 +3,6 @@ import { prisma } from '../prisma/client.js';
 import { signAdminToken } from '../utils/tokens.js';
 
 export async function adminLogin(req, res) {
-  if (!env.adminEmail || !env.adminPassword) {
-    return res.status(503).json({ message: 'Admin login is not configured' });
-  }
   const emailMatches = req.body.email.toLowerCase() === env.adminEmail.toLowerCase();
   if (!emailMatches || req.body.password !== env.adminPassword) {
     return res.status(401).json({ message: 'Invalid admin credentials' });

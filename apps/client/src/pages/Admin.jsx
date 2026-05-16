@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { BarChart3, CheckCircle2, LogOut, MessageCircle, RefreshCw, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Link } from 'react-router-dom';
 import { api } from '../services/api.js';
 
 const tokenKey = 'nexflow-admin-token';
@@ -58,12 +57,12 @@ export default function Admin() {
 
   if (!adminToken) {
     return (
-      <div className="grid h-screen overflow-y-auto bg-slate-950 text-white lg:grid-cols-[1fr_460px]">
-        <section className="relative flex min-h-[48vh] flex-col justify-center overflow-hidden px-5 py-8 sm:px-10 lg:min-h-screen">
+      <div className="grid min-h-[100svh] overflow-x-hidden bg-slate-950 text-white lg:grid-cols-[1fr_500px]">
+        <section className="relative flex min-h-[40vh] flex-col justify-center overflow-hidden px-5 py-8 sm:px-10 lg:min-h-[100svh]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_20%,rgba(34,211,238,0.32),transparent_28%),radial-gradient(circle_at_70%_68%,rgba(37,99,235,0.24),transparent_28%)]" />
           <div className="relative max-w-3xl">
-            <img src="/brand/Fulllogo-trans.webp" alt="NexFlow" className="mb-8 h-14 w-auto sm:h-20" />
-            <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-black leading-tight sm:text-6xl">
+            <img src="/brand/nexflow-full-logo-cropped.webp" alt="NexFlow" className="mb-8 h-24 w-auto sm:h-28 lg:h-32" />
+            <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="text-4xl font-black leading-tight sm:text-5xl xl:text-6xl">
               Monitor NexFlow from one private admin command center.
             </motion.h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
@@ -81,7 +80,7 @@ export default function Admin() {
           </div>
         </section>
         <section className="flex items-center justify-center px-5 py-8">
-          <form onSubmit={login} className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.08] p-6 shadow-2xl backdrop-blur-2xl">
+          <form onSubmit={login} className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.08] p-5 shadow-2xl backdrop-blur-2xl sm:p-6">
             <div className="mb-6 flex items-center gap-3">
               <div className="grid h-12 w-12 place-items-center rounded-lg bg-cyan-400 text-slate-950">
                 <ShieldCheck size={24} />
@@ -94,7 +93,7 @@ export default function Admin() {
             <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} placeholder="Admin email" className="mb-3 w-full rounded-lg border border-white/10 bg-white/10 px-4 py-3 outline-none ring-cyan-300 transition placeholder:text-white/35 focus:ring-2" autoComplete="off" />
             <input value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder="Admin password" type="password" className="mb-4 w-full rounded-lg border border-white/10 bg-white/10 px-4 py-3 outline-none ring-cyan-300 transition placeholder:text-white/35 focus:ring-2" autoComplete="new-password" />
             <button className="w-full rounded-lg bg-cyan-400 px-4 py-3 font-black text-slate-950 transition hover:bg-cyan-300">Unlock Admin Panel</button>
-            <Link to="/login" className="mt-4 block text-center text-sm font-bold text-cyan-100">Back to app login</Link>
+            <a href="/login" className="mt-4 block text-center text-sm font-bold text-cyan-100">Back to app login</a>
           </form>
         </section>
       </div>

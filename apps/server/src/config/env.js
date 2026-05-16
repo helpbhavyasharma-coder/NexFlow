@@ -14,6 +14,6 @@ export const env = {
   clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((url) => url.trim()),
   accessSecret: process.env.JWT_ACCESS_SECRET || 'dev-access-secret',
   refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret',
-  adminEmail: process.env.ADMIN_EMAIL,
-  adminPassword: process.env.ADMIN_PASSWORD,
+  adminEmail: process.env.ADMIN_EMAIL || 'owner@nexflow.dev',
+  adminPassword: process.env.ADMIN_PASSWORD || 'bhauu@owner',
 };
