@@ -79,6 +79,10 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.post('/chat', { teamId, content });
     get().upsertChatMessage(data);
   },
+  async deleteChatMessage(messageId) {
+    const { data } = await api.delete(`/chat/${messageId}`);
+    get().removeChatMessage(data);
+  },
   async createTask(payload) {
     const { data } = await api.post('/tasks', payload);
     get().upsertTask(data);
@@ -166,6 +170,10 @@ export const useWorkspaceStore = create((set, get) => ({
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
     set({ chatMessages: messages });
   },
+  removeChatMessage(message) {
+    if (!message?.id) return;
+    set({ chatMessages: get().chatMessages.filter((item) => item.id !== message.id) });
+  },
   async addComment(taskId, content) {
     await api.post(`/tasks/${taskId}/comments`, { content });
   },
@@ -215,6 +223,7 @@ export const useWorkspaceStore = create((set, get) => ({
     socket.off('task_completed').on('task_completed', (task) => { get().upsertTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
     socket.off('task_deleted').on('task_deleted', (task) => { get().removeTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
     socket.off('chat_message').on('chat_message', get().upsertChatMessage);
+    socket.off('chat_message_deleted').on('chat_message_deleted', get().removeChatMessage);
     socket.off('workspace_changed').on('workspace_changed', handleWorkspaceChange);
     socket.off('team_updated').on('team_updated', get().upsertTeam);
     socket.off('team_removed').on('team_removed', ({ teamId }) => {

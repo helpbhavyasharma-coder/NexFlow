@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, Copy, Crown, LogOut, MessageCircle, Plus, Search, Shield, Sun, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Copy, Crown, LogOut, MessageCircle, Plus, Search, Shield, Sun, Trash2, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../store/workspaceStore.js';
 
 export function DashboardLayout() {
   const { user, logout, updateProfile } = useAuthStore();
-  const { teams, activeTeam, tasks, chatMessages, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam, sendChatMessage, updateMemberRole, removeMember, leaveTeam } = useWorkspaceStore();
+  const { teams, activeTeam, tasks, chatMessages, taskFilter, setTaskFilter, selectTeam, onlineUsers, createTeam, joinTeam, sendChatMessage, deleteChatMessage, updateMemberRole, removeMember, leaveTeam } = useWorkspaceStore();
   const [teamName, setTeamName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [chatText, setChatText] = useState('');
@@ -52,6 +52,11 @@ export function DashboardLayout() {
     if (!chatText.trim()) return;
     await sendChatMessage(chatText.trim());
     setChatText('');
+  }
+
+  async function handleDeleteChatMessage(message) {
+    if (!window.confirm('Delete this message?')) return;
+    await deleteChatMessage(message.id);
   }
 
   async function handleLeaveTeam() {
@@ -212,8 +217,11 @@ export function DashboardLayout() {
                 {chatMessages.length ? chatMessages.map((message) => (
                   <div key={message.id} className={`flex gap-2 ${message.userId === user?.id ? 'justify-end' : 'justify-start'}`}>
                     {message.userId !== user?.id && <img src={lightAvatar(message.user?.avatar) || maleAvatar(message.user?.username || 'user')} className="h-8 w-8 rounded-full bg-white" />}
-                    <div className={`max-w-[82%] rounded-2xl px-3 py-2 ${message.userId === user?.id ? 'bg-cyan-500 text-white' : 'bg-white/10'}`}>
-                      <div className="mb-1 text-[11px] font-black uppercase opacity-70">{message.user?.username || 'Member'}</div>
+                    <div className={`group relative max-w-[82%] rounded-2xl px-3 py-2 ${message.userId === user?.id ? 'bg-cyan-500 text-white' : 'bg-white/10'}`}>
+                      <div className="mb-1 flex items-center justify-between gap-3 text-[11px] font-black uppercase opacity-70">
+                        <span>{message.user?.username || 'Member'}</span>
+                        {message.userId === user?.id && <button onClick={() => handleDeleteChatMessage(message)} className="rounded-md p-1 opacity-80 transition hover:bg-black/20 sm:opacity-0 sm:group-hover:opacity-100" title="Delete message"><Trash2 size={12} /></button>}
+                      </div>
                       <p className="whitespace-pre-wrap text-sm">{message.content}</p>
                     </div>
                   </div>
