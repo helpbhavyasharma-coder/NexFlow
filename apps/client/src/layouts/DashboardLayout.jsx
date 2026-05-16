@@ -178,11 +178,11 @@ export function DashboardLayout() {
             <ThemeToggle />
           </div>
         </aside>
-        <main className="h-full min-w-0 flex-1 overflow-hidden p-2 sm:p-3 md:p-4">
+        <main className="h-full min-w-0 flex-1 overflow-hidden p-2 pb-24 sm:p-3 sm:pb-28 md:p-4 md:pb-28 lg:pb-4">
           <Outlet context={{ openProfile: () => setProfileOpen(true), openTeamHub: () => openTeamHub('chat'), unreadChatCount, userAvatar }} />
         </main>
       </div>
-      <nav className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-950/95 px-2 py-2 text-white shadow-2xl backdrop-blur-xl lg:hidden">
+      <nav className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-3 gap-1 rounded-2xl border border-white/10 bg-slate-950/95 px-2 py-2 text-white shadow-2xl backdrop-blur-xl sm:bottom-4 sm:left-1/2 sm:right-auto sm:w-[min(720px,calc(100vw-2rem))] sm:-translate-x-1/2 lg:hidden">
         <MobileNavButton label="Tasks" active={taskFilter === 'all'} onClick={() => setTaskFilter('all')}><ClipboardList size={18} /></MobileNavButton>
         <MobileNavButton label="Groups" active={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><Users size={18} /></MobileNavButton>
         <MobileNavButton label="Profile" active={profileOpen} onClick={() => setProfileOpen(true)}><img src={userAvatar} className="h-5 w-5 rounded-full bg-white" /></MobileNavButton>

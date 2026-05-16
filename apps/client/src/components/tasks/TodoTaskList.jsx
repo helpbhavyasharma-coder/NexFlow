@@ -77,7 +77,7 @@ export function TodoTaskList() {
     <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="relative min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/60 shadow-2xl sm:rounded-[2rem]">
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(14,165,233,.28),rgba(15,23,42,.35)),url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80')] bg-cover bg-center" />
-        <div className="relative flex h-full min-h-0 flex-col p-3 pb-24 sm:p-4 sm:pb-28 md:p-4 md:pb-4 2xl:p-5">
+        <div className="relative flex h-full min-h-0 flex-col p-3 sm:p-4 2xl:p-5">
           <div className="shrink-0 pb-2 text-white">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-start gap-2">
