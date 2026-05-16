@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { BarChart3, Bell, CheckCircle2, KanbanSquare, MessageCircle, Sparkles, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const features = [
   { icon: KanbanSquare, label: 'Realtime Kanban', text: 'Tasks move instantly across every team member screen.' },
