@@ -195,7 +195,7 @@ export function DashboardLayout() {
                 <h2 className="text-xl font-black">Groups</h2>
                 <p className="text-xs text-white/50">{activeTeam ? `${activeTeam.name} selected` : 'Create or join a group'}</p>
               </div>
-              <button onClick={() => setMobileMenuOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+              <button onClick={() => setMobileMenuOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold sm:text-sm">Close</button>
             </div>
 
             <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
@@ -242,18 +242,18 @@ export function DashboardLayout() {
         </div>
       )}
       {teamHubOpen && activeTeam && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:p-3">
-          <section className="grid h-[calc(100dvh-1rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl sm:h-[calc(100dvh-1.5rem)] lg:grid-cols-[1fr_380px]">
-            <div className={`${teamHubView === 'overview' ? 'hidden lg:flex' : 'flex'} min-h-0 flex-col overflow-hidden border-b border-white/10 lg:border-b-0 lg:border-r`}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/70 p-0 backdrop-blur-sm sm:p-3">
+          <section className="grid h-[100dvh] w-full overflow-hidden border border-white/10 bg-slate-950 shadow-2xl sm:h-[calc(100dvh-1.5rem)] sm:max-w-5xl sm:rounded-2xl xl:grid-cols-[1fr_380px]">
+            <div className={`${teamHubView === 'overview' ? 'hidden xl:flex' : 'flex'} min-w-0 min-h-0 flex-col overflow-hidden border-b border-white/10 xl:border-b-0 xl:border-r`}>
               <div className="shrink-0 border-b border-white/10 bg-slate-950/95 p-4">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
                 <div>
-                  <h2 className="text-2xl font-black">Team Chat</h2>
-                  <p className="text-sm text-white/50">{activeTeam.name} · {activeTeam.members?.length || 0} members · {onlineUsers.length} online</p>
+                  <h2 className="truncate text-xl font-black sm:text-2xl">Team Chat</h2>
+                  <p className="truncate text-xs text-white/50 sm:text-sm">{activeTeam.name} · {activeTeam.members?.length || 0} members · {onlineUsers.length} online</p>
                 </div>
                 <div className="flex shrink-0 gap-2">
-                  <button onClick={() => setTeamHubView('overview')} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold lg:hidden">Overview</button>
-                  <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+                  <button onClick={() => setTeamHubView('overview')} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold sm:text-sm xl:hidden">Overview</button>
+                  <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold sm:text-sm">Close</button>
                 </div>
                 </div>
               </div>
@@ -282,10 +282,10 @@ export function DashboardLayout() {
               </form>
             </div>
 
-            <aside className={`${teamHubView === 'overview' ? 'block' : 'hidden lg:block'} h-full overflow-y-auto p-4`}>
-              <div className="mb-3 flex items-center justify-between gap-2 lg:hidden">
+            <aside className={`${teamHubView === 'overview' ? 'block' : 'hidden xl:block'} h-full min-w-0 overflow-y-auto p-4`}>
+              <div className="mb-3 flex items-center justify-between gap-2 xl:hidden">
                 <button onClick={() => setTeamHubView('chat')} className="rounded-xl bg-cyan-500 px-3 py-2 text-sm font-black text-white"><MessageCircle size={14} className="mr-1 inline" /> Chat</button>
-                <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+                <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold sm:text-sm">Close</button>
               </div>
               <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -338,14 +338,14 @@ export function DashboardLayout() {
         <div className="fixed inset-0 z-50 flex min-h-full items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:items-center">
           <form onSubmit={handleProfileSave} className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] border border-white/10 bg-slate-950 p-6 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-2xl font-black">Edit Profile</h2>
+              <h2 className="truncate text-xl font-black sm:text-2xl">Edit Profile</h2>
               <button type="button" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/10 px-3 py-2">Close</button>
             </div>
             <div className="mb-5 flex items-center gap-4">
               <img src={lightAvatar(profile.avatar)} className="h-20 w-20 rounded-full bg-white ring-2 ring-cyan-300/40" />
               <div>
                 <p className="font-bold">{user?.email}</p>
-                <p className="text-sm text-white/50">Choose an avatar and update your name.</p>
+                <p className="truncate text-xs text-white/50 sm:text-sm">Choose an avatar and update your name.</p>
               </div>
             </div>
             <label className="mb-2 block text-sm font-semibold text-white/70">Name</label>
@@ -401,3 +401,4 @@ function lightAvatar(avatar) {
     return avatar;
   }
 }
+
