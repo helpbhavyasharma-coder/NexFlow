@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, Copy, Crown, LogOut, MessageCircle, Plus, Search, Shield, Sun, Trash2, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Copy, Crown, Info, LogOut, MessageCircle, Plus, Search, Shield, Sun, Trash2, UserMinus, UserPlus, Users, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ export function DashboardLayout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [teamHubOpen, setTeamHubOpen] = useState(false);
+  const [teamHubView, setTeamHubView] = useState('chat');
   const [profile, setProfile] = useState({ username: user?.username || '', avatar: lightAvatar(user?.avatar) || maleAvatar(user?.email || 'Bhavya') });
   const userAvatar = lightAvatar(user?.avatar) || maleAvatar(user?.email || 'NexFlow');
 
@@ -74,11 +75,12 @@ export function DashboardLayout() {
     setMobileMenuOpen(false);
   }
 
-  function openTeamHub() {
+  function openTeamHub(view = 'chat') {
     if (!activeTeam) {
       toast.error('Create or join a group first');
       return;
     }
+    setTeamHubView(view);
     setTeamHubOpen(true);
   }
 
@@ -168,10 +170,10 @@ export function DashboardLayout() {
           </div>
         </aside>
         <main className="h-full min-w-0 flex-1 overflow-hidden p-2 sm:p-3 md:p-4">
-          <Outlet />
+          <Outlet context={{ openProfile: () => setProfileOpen(true), userAvatar }} />
         </main>
       </div>
-      <button onClick={openTeamHub} className="fixed bottom-24 right-4 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-white shadow-2xl transition hover:bg-cyan-400 lg:bottom-5" title="Team chat">
+      <button onClick={() => openTeamHub('chat')} className="fixed bottom-36 right-4 z-40 grid h-14 w-14 place-items-center rounded-2xl bg-cyan-500 text-white shadow-2xl transition hover:bg-cyan-400 lg:bottom-5" title="Team chat">
         <MessageCircle size={22} />
         {unreadChatCount > 0 && <span className="absolute -right-1 -top-1 min-w-6 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-xs font-black">{unreadChatCount}</span>}
       </button>
@@ -206,7 +208,10 @@ export function DashboardLayout() {
               <p className="truncate text-sm font-black">{activeTeam?.name || 'No group selected'}</p>
               <p className="mt-1 truncate text-white/55">Admin: {owner?.username || 'Unknown'}</p>
               {activeTeam?.inviteCode && <button onClick={copyInviteCode} className="mt-3 flex w-full items-center justify-between rounded-xl bg-black/30 px-3 py-2 text-left font-bold"><span className="truncate">Invite: {activeTeam.inviteCode}</span><Copy size={14} /></button>}
-              <button onClick={() => { openTeamHub(); setMobileMenuOpen(false); }} className="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Team Hub {unreadChatCount > 0 && <span className="absolute right-3 rounded-full bg-rose-500 px-2 py-0.5 text-[10px]">{unreadChatCount}</span>}</button>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button onClick={() => { openTeamHub('chat'); setMobileMenuOpen(false); }} className="relative flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 font-black text-white"><MessageCircle size={15} /> Chat {unreadChatCount > 0 && <span className="absolute right-2 top-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px]">{unreadChatCount}</span>}</button>
+                <button onClick={() => { openTeamHub('overview'); setMobileMenuOpen(false); }} className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 font-black text-white"><Info size={15} /> Overview</button>
+              </div>
             </div>
 
             <div className="mt-4 space-y-2">
@@ -234,13 +239,16 @@ export function DashboardLayout() {
       {teamHubOpen && activeTeam && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-3 backdrop-blur-sm">
           <section className="grid max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl lg:grid-cols-[1fr_380px]">
-            <div className="flex min-h-[420px] flex-col overflow-hidden border-b border-white/10 p-4 lg:border-b-0 lg:border-r">
+            <div className={`${teamHubView === 'overview' ? 'hidden lg:flex' : 'flex'} min-h-[min(640px,calc(100dvh-1.5rem))] flex-col overflow-hidden border-b border-white/10 p-4 lg:border-b-0 lg:border-r`}>
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-black">Team Chat</h2>
                   <p className="text-sm text-white/50">{activeTeam.name} · {activeTeam.members?.length || 0} members · {onlineUsers.length} online</p>
                 </div>
-                <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+                <div className="flex shrink-0 gap-2">
+                  <button onClick={() => setTeamHubView('overview')} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold lg:hidden">Overview</button>
+                  <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+                </div>
               </div>
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
                 {chatMessages.length ? chatMessages.map((message) => (
@@ -262,7 +270,11 @@ export function DashboardLayout() {
               </form>
             </div>
 
-            <aside className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4">
+            <aside className={`${teamHubView === 'overview' ? 'block' : 'hidden lg:block'} max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-4`}>
+              <div className="mb-3 flex items-center justify-between gap-2 lg:hidden">
+                <button onClick={() => setTeamHubView('chat')} className="rounded-xl bg-cyan-500 px-3 py-2 text-sm font-black text-white"><MessageCircle size={14} className="mr-1 inline" /> Chat</button>
+                <button onClick={() => setTeamHubOpen(false)} className="rounded-xl bg-white/10 px-3 py-2 text-sm font-bold">Close</button>
+              </div>
               <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <h3 className="font-black">Group Overview</h3>

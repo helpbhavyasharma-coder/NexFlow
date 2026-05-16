@@ -230,6 +230,7 @@ export const useWorkspaceStore = create((set, get) => ({
     if (!socket) return;
     get().realtimeCleanup?.();
     const syncActiveTeam = async () => {
+      if (document.hidden) return;
       const teamId = get().activeTeam?.id;
       if (!teamId) return;
       socket.emit('team_join', teamId, (response) => {
@@ -285,7 +286,7 @@ export const useWorkspaceStore = create((set, get) => ({
     const handleVisibilityChange = () => {
       if (!document.hidden) syncActiveTeam();
     };
-    const recoveryInterval = window.setInterval(syncActiveTeam, 8000);
+    const recoveryInterval = window.setInterval(syncActiveTeam, 30000);
     window.addEventListener('focus', syncActiveTeam);
     window.addEventListener('online', syncActiveTeam);
     document.addEventListener('visibilitychange', handleVisibilityChange);

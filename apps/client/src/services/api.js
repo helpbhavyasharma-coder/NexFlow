@@ -4,6 +4,14 @@ import toast from 'react-hot-toast';
 export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api' });
 
 let refreshPromise = null;
+let lastErrorToast = { message: '', time: 0 };
+
+function showErrorToast(message, { id, cooldown = 5000 } = {}) {
+  const now = Date.now();
+  if (lastErrorToast.message === message && now - lastErrorToast.time < cooldown) return;
+  lastErrorToast = { message, time: now };
+  toast.error(message, id ? { id } : undefined);
+}
 
 function getAuthState() {
   return JSON.parse(localStorage.getItem('nexflow-auth') || '{}')?.state || {};
@@ -40,11 +48,15 @@ api.interceptors.response.use((response) => response, (error) => {
       originalRequest.headers.Authorization = `Bearer ${token}`;
       return api(originalRequest);
     }).catch((refreshError) => {
-      toast.error('Session expired. Please login again.');
+      showErrorToast('Session expired. Please login again.', { id: 'session-expired', cooldown: 15000 });
       return Promise.reject(refreshError);
     });
   }
+  if (error.response?.status === 429) {
+    showErrorToast('Server is busy. Please wait a moment.', { id: 'rate-limit', cooldown: 15000 });
+    return Promise.reject(error);
+  }
   const message = error.response?.data?.message || 'Something went wrong';
-  toast.error(message);
+  showErrorToast(message);
   return Promise.reject(error);
 });

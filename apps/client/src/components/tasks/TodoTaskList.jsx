@@ -1,11 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarDays, Check, ChevronDown, Circle, Clock, FolderKanban, MessageCircle, Play, Plus, RotateCcw, Search, Star, Trash2, UserPlus, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore.js';
 import { useWorkspaceStore } from '../../store/workspaceStore.js';
 
 export function TodoTaskList() {
   const user = useAuthStore((state) => state.user);
+  const { openProfile, userAvatar } = useOutletContext() || {};
   const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, reopenTask, cancelTask, deleteTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
   const [bundleName, setBundleName] = useState('');
@@ -70,9 +72,12 @@ export function TodoTaskList() {
         <div className="relative flex h-full min-h-0 flex-col p-3 pb-24 sm:p-4 sm:pb-28 md:p-4 md:pb-4 2xl:p-5">
           <div className="shrink-0 pb-2 text-white">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="flex min-w-0 items-start gap-2">
+                {userAvatar && <button onClick={openProfile} className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white ring-2 ring-cyan-300/40 lg:hidden" title="Profile"><img src={userAvatar} className="h-9 w-9 rounded-full" /></button>}
+                <div className="min-w-0">
                 <h1 className="text-3xl font-black leading-none md:text-4xl">My Day</h1>
                 <p className="mt-1 text-xs font-semibold text-white/75">{today.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                </div>
               </div>
               <div className="flex w-full items-center gap-2 rounded-xl bg-black/25 px-3 py-2 backdrop-blur-xl sm:w-auto md:py-1.5">
                 <Search size={16} />
