@@ -8,3 +8,5 @@ html, body, #root { height: 100%; }
 body { @apply overflow-hidden bg-slate-50 text-slate-950 antialiased dark:bg-ink dark:text-white; }
 .glass { @apply border border-white/20 bg-white/70 shadow-xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/60; }
 .card-hover { @apply transition duration-300 hover:-translate-y-1 hover:shadow-glow; }
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }

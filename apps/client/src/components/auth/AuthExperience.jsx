@@ -18,7 +18,7 @@ const stats = [
 export function AuthExperience({ mode, title, subtitle, children }) {
   const isLogin = mode === 'login';
   return (
-    <div className="relative min-h-[100svh] overflow-x-hidden bg-slate-950 text-white">
+    <div className="scrollbar-none relative h-[100svh] overflow-y-auto overflow-x-hidden bg-slate-950 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(34,211,238,0.28),transparent_28%),radial-gradient(circle_at_78%_24%,rgba(37,99,235,0.24),transparent_26%),linear-gradient(135deg,#020617_0%,#0f172a_48%,#111827_100%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:48px_48px]" />
 
@@ -47,7 +47,7 @@ export function AuthExperience({ mode, title, subtitle, children }) {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.18 }}
-              className="text-[1.65rem] font-black leading-tight text-white sm:text-5xl lg:text-[3.45rem] lg:leading-[1.03] 2xl:text-[4rem]"
+              className="text-[1.45rem] font-black leading-tight text-white min-[390px]:text-[1.6rem] sm:text-5xl lg:text-[3.45rem] lg:leading-[1.03] 2xl:text-[4rem]"
             >
               Manage every task, team and conversation in one live workspace.
             </motion.h1>
@@ -55,7 +55,7 @@ export function AuthExperience({ mode, title, subtitle, children }) {
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.26 }}
-              className="mt-2 max-w-xl text-xs leading-5 text-slate-300 sm:mt-5 sm:text-lg sm:leading-7"
+              className="mt-2 max-w-xl text-[11px] leading-5 text-slate-300 min-[390px]:text-xs sm:mt-5 sm:text-lg sm:leading-7"
             >
               NexFlow brings Kanban planning, team roles, realtime chat, notifications and analytics into a clean workflow your team can use daily.
             </motion.p>
