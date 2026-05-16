@@ -8,7 +8,7 @@ import { useWorkspaceStore } from '../../store/workspaceStore.js';
 export function TodoTaskList() {
   const user = useAuthStore((state) => state.user);
   const { openProfile, openTeamHub, unreadChatCount = 0, userAvatar } = useOutletContext() || {};
-  const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, createTask, startTask, completeTask, reopenTask, cancelTask, deleteTask } = useWorkspaceStore();
+  const { activeTeam, tasks, bundles, activeBundleId, taskFilter, setActiveBundleId, createBundle, deleteBundle, createTask, startTask, completeTask, reopenTask, cancelTask, deleteTask } = useWorkspaceStore();
   const [title, setTitle] = useState('');
   const [bundleName, setBundleName] = useState('');
   const [taskBundleId, setTaskBundleId] = useState('none');
@@ -65,6 +65,14 @@ export function TodoTaskList() {
     setClosedBundles((current) => ({ ...current, [bundleId]: !current[bundleId] }));
   }
 
+  async function handleDeleteBundle(bundle) {
+    if (!bundle?.id) return;
+    const count = tasks.filter((task) => task.bundleId === bundle.id).length;
+    const suffix = count ? ` ${count} task${count === 1 ? '' : 's'} will move to No bundle.` : '';
+    if (!window.confirm(`Delete bundle "${bundle.name}"?${suffix}`)) return;
+    await deleteBundle(bundle.id);
+  }
+
   return (
     <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="relative min-h-0 overflow-hidden rounded-[1.5rem] border border-white/10 bg-slate-950/60 shadow-2xl sm:rounded-[2rem]">
@@ -99,7 +107,7 @@ export function TodoTaskList() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               <BundleButton label="All" count={tasks.length} active={activeBundleId === 'all'} onClick={() => setActiveBundleId('all')} />
               <BundleButton label="No bundle" count={tasks.filter((task) => !task.bundleId).length} active={activeBundleId === 'none'} onClick={() => setActiveBundleId('none')} />
-              {bundles.map((bundle) => <BundleButton key={bundle.id} label={bundle.name} count={tasks.filter((task) => task.bundleId === bundle.id).length} active={activeBundleId === bundle.id} onClick={() => setActiveBundleId(bundle.id)} />)}
+              {bundles.map((bundle) => <BundleButton key={bundle.id} label={bundle.name} count={tasks.filter((task) => task.bundleId === bundle.id).length} active={activeBundleId === bundle.id} onClick={() => setActiveBundleId(bundle.id)} onDelete={canDeleteTasks ? () => handleDeleteBundle(bundle) : undefined} />)}
             </div>
             <form onSubmit={addBundle} className="flex items-center gap-2 rounded-lg bg-black/30 px-3 py-1.5 text-white backdrop-blur-xl md:py-1">
               <FolderKanban size={14} className="shrink-0 text-cyan-200" />
@@ -118,6 +126,7 @@ export function TodoTaskList() {
                       <FolderKanban size={14} className="text-cyan-200" />
                       <span className="min-w-0 flex-1 truncate">{section.name}</span>
                       <span className="rounded bg-white/15 px-2 py-0.5">{section.tasks.length}</span>
+                      {section.id !== 'none' && canDeleteTasks && <span onClick={(event) => { event.stopPropagation(); handleDeleteBundle(section); }} className="grid h-6 w-6 place-items-center rounded-md text-white/60 transition hover:bg-rose-500 hover:text-white" title="Delete bundle"><Trash2 size={13} /></span>}
                     </button>
                     {!closedBundles[section.id] && (
                       <div className="space-y-2 p-2 pt-0">
@@ -217,8 +226,14 @@ function DetailItem({ icon, label, value }) {
   return <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3"><span className="flex items-center gap-2 text-white/55">{icon}{label}</span><b>{value}</b></div>;
 }
 
-function BundleButton({ label, count, active, onClick }) {
-  return <button onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-black transition ${active ? 'bg-cyan-500 text-white' : 'bg-black/35 text-white/75 hover:bg-black/50'}`}><span className="max-w-36 truncate">{label}</span><span className="rounded bg-black/20 px-2">{count}</span></button>;
+function BundleButton({ label, count, active, onClick, onDelete }) {
+  return (
+    <button onClick={onClick} className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-black transition ${active ? 'bg-cyan-500 text-white' : 'bg-black/35 text-white/75 hover:bg-black/50'}`}>
+      <span className="max-w-36 truncate">{label}</span>
+      <span className="rounded bg-black/20 px-2">{count}</span>
+      {onDelete && <span onClick={(event) => { event.stopPropagation(); onDelete(); }} className="-mr-1 grid h-5 w-5 place-items-center rounded text-white/70 transition hover:bg-rose-500 hover:text-white" title="Delete bundle"><Trash2 size={12} /></span>}
+    </button>
+  );
 }
 
 async function handleDeleteTask(task, deleteTask, selectedTaskId, setSelectedTaskId) {

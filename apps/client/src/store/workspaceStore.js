@@ -136,6 +136,10 @@ export const useWorkspaceStore = create((set, get) => ({
     const { data } = await api.post('/bundles', payload);
     set({ bundles: [...get().bundles.filter((bundle) => bundle.id !== data.id), data], activeBundleId: data.id });
   },
+  async deleteBundle(bundleId) {
+    const { data } = await api.delete(`/bundles/${bundleId}`);
+    get().removeBundle(data);
+  },
   async createTeam(payload) {
     const { data } = await api.post('/teams', payload);
     set({ teams: [data, ...get().teams], activeTeam: data });
@@ -216,6 +220,14 @@ export const useWorkspaceStore = create((set, get) => ({
     set({
       tasks: get().tasks.filter((item) => item.id !== task.id),
       teams: get().teams.map((team) => team.id === task.teamId ? { ...team, tasks: (team.tasks || []).filter((item) => item.id !== task.id) } : team),
+    });
+  },
+  removeBundle(bundle) {
+    if (!bundle?.id) return;
+    set({
+      bundles: get().bundles.filter((item) => item.id !== bundle.id),
+      activeBundleId: get().activeBundleId === bundle.id ? 'all' : get().activeBundleId,
+      tasks: get().tasks.map((task) => task.bundleId === bundle.id ? { ...task, bundleId: null, bundle: null } : task),
     });
   },
   removeTeam(teamId) {
@@ -314,6 +326,7 @@ export const useWorkspaceStore = create((set, get) => ({
       if (bundle.teamId !== get().activeTeam?.id) return;
       set({ bundles: [...get().bundles.filter((item) => item.id !== bundle.id), bundle] });
     });
+    socket.off('bundle_deleted').on('bundle_deleted', get().removeBundle);
     socket.off('notification_created').on('notification_created', (notification) => set({ notifications: [notification, ...get().notifications] }));
     socket.off('team_presence').on('team_presence', ({ teamId, userIds }) => {
       if (teamId === get().activeTeam?.id) set({ onlineUsers: userIds });
