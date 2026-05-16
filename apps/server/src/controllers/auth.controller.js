@@ -20,16 +20,17 @@ async function issueTokens(user) {
 }
 
 export async function register(req, res) {
-  const existing = await prisma.user.findUnique({ where: { email: req.body.email } });
+  const email = req.body.email.toLowerCase();
+  const existing = await prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
   if (existing) return res.status(409).json({ message: 'Email already registered' });
   const password = await bcrypt.hash(req.body.password, 12);
-  const user = await prisma.user.create({ data: { ...req.body, password } });
+  const user = await prisma.user.create({ data: { ...req.body, email, password } });
   const { accessToken, refreshToken } = await issueTokens(user);
   res.status(201).json({ user: sanitizeUser(user), accessToken, refreshToken });
 }
 
 export async function login(req, res) {
-  const user = await prisma.user.findUnique({ where: { email: req.body.email } });
+  const user = await prisma.user.findFirst({ where: { email: { equals: req.body.email, mode: 'insensitive' } } });
   if (!user) return res.status(401).json({ message: 'Invalid credentials' });
   const valid = await bcrypt.compare(req.body.password, user.password);
   if (!valid) return res.status(401).json({ message: 'Invalid credentials' });

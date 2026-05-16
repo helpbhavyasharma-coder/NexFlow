@@ -8,6 +8,7 @@ import { useThemeStore } from './store/themeStore.js';
 const Dashboard = lazy(() => import('./pages/Dashboard.jsx'));
 const Login = lazy(() => import('./pages/Login.jsx'));
 const Register = lazy(() => import('./pages/Register.jsx'));
+const Admin = lazy(() => import('./pages/Admin.jsx'));
 
 export default function App() {
   const applyTheme = useThemeStore((state) => state.applyTheme);
@@ -17,6 +18,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
       </Route>
