@@ -26,9 +26,17 @@ export function registerSockets(io) {
     socket.join(`user:${socket.user.id}`);
     io.emit('user_online', { userId: socket.user.id, username: socket.user.username });
 
-    socket.on('team_join', async (teamId) => {
+    socket.on('team_join', async (teamId, ack) => {
       const member = await prisma.teamMember.findUnique({ where: { userId_teamId: { userId: socket.user.id, teamId } } });
-      if (member) socket.join(`team:${teamId}`);
+      if (!member) {
+        if (typeof ack === 'function') ack({ ok: false });
+        return;
+      }
+      socket.join(`team:${teamId}`);
+      const members = await prisma.teamMember.findMany({ where: { teamId }, select: { userId: true } });
+      const onlineTeamUsers = members.map((item) => item.userId).filter((userId) => onlineUsers.has(userId));
+      socket.emit('team_presence', { teamId, userIds: onlineTeamUsers });
+      if (typeof ack === 'function') ack({ ok: true, teamId, userIds: onlineTeamUsers });
     });
 
     socket.on('typing_start', ({ teamId, taskId }) => socket.to(`team:${teamId}`).emit('typing_start', { taskId, user: { id: socket.user.id, username: socket.user.username } }));

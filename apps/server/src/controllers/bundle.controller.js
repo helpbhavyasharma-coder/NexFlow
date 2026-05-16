@@ -16,6 +16,8 @@ export async function createBundle(req, res) {
     data: req.body,
     include: includeBundle,
   });
-  req.app.get('io')?.to(`team:${bundle.teamId}`).emit('bundle_created', bundle);
+  const io = req.app.get('io');
+  io?.to(`team:${bundle.teamId}`).emit('bundle_created', bundle);
+  io?.to(`team:${bundle.teamId}`).emit('workspace_changed', { teamId: bundle.teamId, sections: ['bundles'], action: 'bundle_created', at: new Date().toISOString() });
   res.status(201).json(bundle);
 }

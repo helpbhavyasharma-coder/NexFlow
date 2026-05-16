@@ -19,6 +19,8 @@ export async function createMessage(req, res) {
     data: { teamId: req.body.teamId, userId: req.user.id, content: req.body.content },
     include: includeMessage,
   });
-  req.app.get('io')?.to(`team:${message.teamId}`).emit('chat_message', message);
+  const io = req.app.get('io');
+  io?.to(`team:${message.teamId}`).emit('chat_message', message);
+  io?.to(`team:${message.teamId}`).emit('workspace_changed', { teamId: message.teamId, sections: ['chat'], action: 'chat_message', at: new Date().toISOString() });
   res.status(201).json(message);
 }

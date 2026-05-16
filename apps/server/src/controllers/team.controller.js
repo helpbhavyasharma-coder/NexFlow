@@ -3,6 +3,10 @@ import { prisma } from '../prisma/client.js';
 
 const includeTeam = { members: { include: { user: { select: { id: true, username: true, email: true, avatar: true } } } }, tasks: true };
 
+function emitTeamChange(io, teamId, action) {
+  io?.to(`team:${teamId}`).emit('workspace_changed', { teamId, sections: ['teams'], action, at: new Date().toISOString() });
+}
+
 export async function listTeams(req, res) {
   const teams = await prisma.team.findMany({ where: { members: { some: { userId: req.user.id } } }, include: includeTeam, orderBy: { createdAt: 'desc' } });
   res.json(teams);
@@ -15,11 +19,15 @@ export async function createTeam(req, res) {
 
 export async function updateTeam(req, res) {
   const team = await prisma.team.update({ where: { id: req.params.teamId }, data: { name: req.body.name, description: req.body.description }, include: includeTeam });
+  const io = req.app.get('io');
+  io?.to(`team:${team.id}`).emit('team_updated', team);
+  emitTeamChange(io, team.id, 'team_updated');
   res.json(team);
 }
 
 export async function deleteTeam(req, res) {
   await prisma.team.delete({ where: { id: req.params.teamId } });
+  req.app.get('io')?.to(`team:${req.params.teamId}`).emit('team_deleted', { teamId: req.params.teamId });
   res.json({ message: 'Team deleted' });
 }
 
@@ -28,7 +36,10 @@ export async function joinTeam(req, res) {
   if (!team) return res.status(404).json({ message: 'Invalid invite code' });
   await prisma.teamMember.upsert({ where: { userId_teamId: { userId: req.user.id, teamId: team.id } }, update: {}, create: { userId: req.user.id, teamId: team.id, role: 'MEMBER' } });
   const joined = await prisma.team.findUnique({ where: { id: team.id }, include: includeTeam });
-  req.app.get('io')?.to(`team:${team.id}`).emit('member_joined', { teamId: team.id, userId: req.user.id });
+  const io = req.app.get('io');
+  io?.to(`team:${team.id}`).emit('member_joined', { teamId: team.id, userId: req.user.id });
+  io?.to(`team:${team.id}`).emit('team_updated', joined);
+  emitTeamChange(io, team.id, 'member_joined');
   res.json(joined);
 }
 
@@ -48,7 +59,9 @@ export async function updateMemberRole(req, res) {
   }
 
   const team = await prisma.team.findUnique({ where: { id: req.params.teamId }, include: includeTeam });
-  req.app.get('io')?.to(`team:${req.params.teamId}`).emit('team_updated', team);
+  const io = req.app.get('io');
+  io?.to(`team:${req.params.teamId}`).emit('team_updated', team);
+  emitTeamChange(io, req.params.teamId, 'member_role_updated');
   res.json(team);
 }
 
@@ -61,6 +74,7 @@ export async function removeMember(req, res) {
   const io = req.app.get('io');
   io?.to(`team:${req.params.teamId}`).emit('team_updated', team);
   io?.to(`user:${member.userId}`).emit('team_removed', { teamId: req.params.teamId });
+  emitTeamChange(io, req.params.teamId, 'member_removed');
   res.json(team);
 }
 
@@ -70,6 +84,8 @@ export async function leaveTeam(req, res) {
   if (member.role === 'OWNER') return res.status(409).json({ message: 'Transfer ownership before leaving this group' });
   await prisma.teamMember.delete({ where: { id: member.id } });
   const team = await prisma.team.findUnique({ where: { id: req.params.teamId }, include: includeTeam });
-  req.app.get('io')?.to(`team:${req.params.teamId}`).emit('team_updated', team);
+  const io = req.app.get('io');
+  io?.to(`team:${req.params.teamId}`).emit('team_updated', team);
+  emitTeamChange(io, req.params.teamId, 'member_left');
   res.json({ teamId: req.params.teamId });
 }

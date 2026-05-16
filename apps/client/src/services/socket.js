@@ -35,6 +35,11 @@ export function getSocket() {
   return socket;
 }
 
+export function connectStoredSocket() {
+  const token = JSON.parse(localStorage.getItem('nexflow-auth') || '{}')?.state?.accessToken;
+  return token ? connectSocket(token) : null;
+}
+
 export function disconnectSocket() {
   socket?.disconnect();
   socket = null;

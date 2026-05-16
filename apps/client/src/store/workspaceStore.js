@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import toast from 'react-hot-toast';
 import { api } from '../services/api.js';
-import { getSocket } from '../services/socket.js';
+import { connectStoredSocket, getSocket } from '../services/socket.js';
+
+let sectionSyncTimer = null;
+let pendingSections = new Set();
 
 export const useWorkspaceStore = create((set, get) => ({
   teams: [],
@@ -15,6 +18,7 @@ export const useWorkspaceStore = create((set, get) => ({
   analytics: null,
   onlineUsers: [],
   realtimeCleanup: null,
+  realtimeStatus: 'offline',
   setTaskFilter(taskFilter) {
     set({ taskFilter });
   },
@@ -47,6 +51,28 @@ export const useWorkspaceStore = create((set, get) => ({
     if (!teamId) return;
     const { data } = await api.get(`/chat/team/${teamId}`);
     set({ chatMessages: data });
+  },
+  async syncTeamSections(teamId = get().activeTeam?.id, sections = ['tasks', 'bundles', 'chat', 'analytics', 'notifications']) {
+    if (!teamId) return;
+    const uniqueSections = Array.from(new Set(sections));
+    const work = [];
+    if (uniqueSections.includes('tasks')) work.push(get().loadTasks(teamId));
+    if (uniqueSections.includes('bundles')) work.push(get().loadBundles(teamId));
+    if (uniqueSections.includes('chat')) work.push(get().loadChatMessages(teamId));
+    if (uniqueSections.includes('analytics')) work.push(get().loadAnalytics(teamId));
+    if (uniqueSections.includes('notifications')) work.push(get().loadNotifications());
+    await Promise.all(work);
+  },
+  queueTeamSectionSync(teamId = get().activeTeam?.id, sections = ['tasks', 'bundles', 'chat', 'analytics', 'notifications']) {
+    if (!teamId || teamId !== get().activeTeam?.id) return;
+    sections = sections?.length ? sections : ['tasks', 'bundles', 'chat', 'analytics', 'notifications'];
+    sections.forEach((section) => pendingSections.add(section));
+    window.clearTimeout(sectionSyncTimer);
+    sectionSyncTimer = window.setTimeout(() => {
+      const sectionsToSync = Array.from(pendingSections);
+      pendingSections = new Set();
+      get().syncTeamSections(teamId, sectionsToSync).catch(() => {});
+    }, 250);
   },
   async sendChatMessage(content, teamId = get().activeTeam?.id) {
     if (!teamId || !content.trim()) return;
@@ -136,7 +162,9 @@ export const useWorkspaceStore = create((set, get) => ({
   },
   upsertChatMessage(message) {
     if (!message?.id || message.teamId !== get().activeTeam?.id) return;
-    set({ chatMessages: [...get().chatMessages.filter((item) => item.id !== message.id), message] });
+    const messages = [...get().chatMessages.filter((item) => item.id !== message.id), message]
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    set({ chatMessages: messages });
   },
   async addComment(taskId, content) {
     await api.post(`/tasks/${taskId}/comments`, { content });
@@ -151,31 +179,49 @@ export const useWorkspaceStore = create((set, get) => ({
     set({ analytics: data });
   },
   wireRealtime() {
-    const socket = getSocket();
+    const socket = getSocket() || connectStoredSocket();
     if (!socket) return;
     get().realtimeCleanup?.();
     const syncActiveTeam = async () => {
       const teamId = get().activeTeam?.id;
       if (!teamId) return;
-      socket.emit('team_join', teamId);
+      socket.emit('team_join', teamId, (response) => {
+        if (response?.userIds) set({ onlineUsers: response.userIds });
+      });
       try {
-        await Promise.all([get().loadTasks(teamId), get().loadBundles(teamId), get().loadChatMessages(teamId), get().loadAnalytics(teamId), get().loadNotifications()]);
+        await get().syncTeamSections(teamId);
       } catch {
         // Realtime recovery should never break the visible app if one refresh request fails.
       }
     };
-    socket.off('connect').on('connect', syncActiveTeam);
+    const handleConnect = () => {
+      set({ realtimeStatus: 'online' });
+      syncActiveTeam();
+    };
+    const handleDisconnect = () => set({ realtimeStatus: 'offline' });
+    const handleWorkspaceChange = ({ teamId, sections }) => {
+      if (teamId !== get().activeTeam?.id) return;
+      get().queueTeamSectionSync(teamId, sections);
+    };
+    socket.off('connect').on('connect', handleConnect);
+    socket.off('disconnect').on('disconnect', handleDisconnect);
     socket.io.off('reconnect').on('reconnect', syncActiveTeam);
     socket.io.off('reconnect_error').on('reconnect_error', () => {});
+    if (socket.connected) set({ realtimeStatus: 'online' });
     syncActiveTeam();
-    socket.off('task_created').on('task_created', get().upsertTask);
-    socket.off('task_updated').on('task_updated', get().upsertTask);
-    socket.off('task_started').on('task_started', get().upsertTask);
-    socket.off('task_completed').on('task_completed', get().upsertTask);
-    socket.off('task_deleted').on('task_deleted', get().removeTask);
+    socket.off('task_created').on('task_created', (task) => { get().upsertTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
+    socket.off('task_updated').on('task_updated', (task) => { get().upsertTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
+    socket.off('task_started').on('task_started', (task) => { get().upsertTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
+    socket.off('task_completed').on('task_completed', (task) => { get().upsertTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
+    socket.off('task_deleted').on('task_deleted', (task) => { get().removeTask(task); get().queueTeamSectionSync(task.teamId, ['analytics']); });
     socket.off('chat_message').on('chat_message', get().upsertChatMessage);
+    socket.off('workspace_changed').on('workspace_changed', handleWorkspaceChange);
     socket.off('team_updated').on('team_updated', get().upsertTeam);
     socket.off('team_removed').on('team_removed', ({ teamId }) => {
+      const remainingTeams = get().teams.filter((team) => team.id !== teamId);
+      set({ teams: remainingTeams, activeTeam: get().activeTeam?.id === teamId ? remainingTeams[0] || null : get().activeTeam });
+    });
+    socket.off('team_deleted').on('team_deleted', ({ teamId }) => {
       const remainingTeams = get().teams.filter((team) => team.id !== teamId);
       set({ teams: remainingTeams, activeTeam: get().activeTeam?.id === teamId ? remainingTeams[0] || null : get().activeTeam });
     });
@@ -184,22 +230,30 @@ export const useWorkspaceStore = create((set, get) => ({
       set({ bundles: [...get().bundles.filter((item) => item.id !== bundle.id), bundle] });
     });
     socket.off('notification_created').on('notification_created', (notification) => set({ notifications: [notification, ...get().notifications] }));
+    socket.off('team_presence').on('team_presence', ({ teamId, userIds }) => {
+      if (teamId === get().activeTeam?.id) set({ onlineUsers: userIds });
+    });
     socket.off('user_online').on('user_online', ({ userId }) => set({ onlineUsers: Array.from(new Set([...get().onlineUsers, userId])) }));
     socket.off('user_offline').on('user_offline', ({ userId }) => set({ onlineUsers: get().onlineUsers.filter((id) => id !== userId) }));
     socket.off('comment_created').on('comment_created', ({ taskId, comment }) => set({ tasks: get().tasks.map((task) => task.id === taskId ? { ...task, comments: [...(task.comments || []), comment] } : task) }));
     const handleVisibilityChange = () => {
       if (!document.hidden) syncActiveTeam();
     };
-    const recoveryInterval = window.setInterval(syncActiveTeam, 20000);
+    const recoveryInterval = window.setInterval(syncActiveTeam, 8000);
     window.addEventListener('focus', syncActiveTeam);
+    window.addEventListener('online', syncActiveTeam);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     set({
       realtimeCleanup: () => {
         window.clearInterval(recoveryInterval);
+        window.clearTimeout(sectionSyncTimer);
         window.removeEventListener('focus', syncActiveTeam);
+        window.removeEventListener('online', syncActiveTeam);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
-        socket.off('connect', syncActiveTeam);
+        socket.off('connect', handleConnect);
+        socket.off('disconnect', handleDisconnect);
         socket.io.off('reconnect', syncActiveTeam);
+        socket.off('workspace_changed', handleWorkspaceChange);
       },
     });
   },
