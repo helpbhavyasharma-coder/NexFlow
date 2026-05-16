@@ -6,7 +6,7 @@ export function signAccessToken(user) {
 }
 
 export function signRefreshToken(user) {
-  return jwt.sign({ id: user.id, email: user.email }, env.refreshSecret, { expiresIn: '7d' });
+  return jwt.sign({ id: user.id, email: user.email }, env.refreshSecret, { expiresIn: '90d' });
 }
 
 export function verifyAccessToken(token) {

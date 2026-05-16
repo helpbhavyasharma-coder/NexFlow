@@ -11,8 +11,8 @@ const Register = lazy(() => import('./pages/Register.jsx'));
 
 export default function App() {
   const applyTheme = useThemeStore((state) => state.applyTheme);
-  const hydrateSocket = useAuthStore((state) => state.hydrateSocket);
-  useEffect(() => { applyTheme(); hydrateSocket(); }, []);
+  const hydrateSession = useAuthStore((state) => state.hydrateSession);
+  useEffect(() => { applyTheme(); hydrateSession(); }, []);
   return (
     <Routes>
       <Route path="/login" element={<Login />} />

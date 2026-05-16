@@ -18,7 +18,7 @@ export async function refreshAccessToken() {
   const refreshToken = getAuthState().refreshToken;
   if (!refreshToken) throw new Error('Refresh token missing');
   refreshPromise ||= axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken }).then(({ data }) => {
-    setAuthState({ accessToken: data.accessToken });
+    setAuthState({ accessToken: data.accessToken, ...(data.user ? { user: data.user } : {}) });
     return data.accessToken;
   }).finally(() => {
     refreshPromise = null;

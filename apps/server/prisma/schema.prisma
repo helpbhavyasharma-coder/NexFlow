@@ -38,6 +38,7 @@ model User {
   createdAt    DateTime       @default(now())
   ownedTeams   Team[]         @relation("TeamOwner")
   memberships  TeamMember[]
+  refreshSessions RefreshSession[]
   assigned     Task[]         @relation("TaskAssigned")
   started      Task[]         @relation("TaskStarted")
   completed    Task[]         @relation("TaskCompleted")
@@ -45,6 +46,17 @@ model User {
   chatMessages ChatMessage[]
   notifications Notification[]
   activities   Activity[]
+}
+
+model RefreshSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Team {
